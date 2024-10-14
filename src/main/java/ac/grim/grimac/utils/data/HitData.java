@@ -1,22 +1,22 @@
 package ac.grim.grimac.utils.data;
 
-import com.github.retrooper.packetevents.protocol.world.BlockFace;
-import com.github.retrooper.packetevents.protocol.world.states.WrappedBlockState;
-import com.github.retrooper.packetevents.util.Vector3d;
-import com.github.retrooper.packetevents.util.Vector3i;
+import ac.grim.grimac.utils.minestom.MinestomWrappedBlockState;
+import ac.grim.grimac.utils.vector.MutableVector;
+import ac.grim.grimac.utils.vector.Vector3d;
+import ac.grim.grimac.utils.vector.Vector3i;
 import lombok.Getter;
 import lombok.ToString;
-import org.bukkit.util.Vector;
+import net.minestom.server.instance.block.BlockFace;
 
 @Getter
 @ToString
 public class HitData {
     Vector3i position;
-    Vector blockHitLocation;
-    WrappedBlockState state;
+    MutableVector blockHitLocation;
+    MinestomWrappedBlockState state;
     BlockFace closestDirection;
 
-    public HitData(Vector3i position, Vector blockHitLocation, BlockFace closestDirection, WrappedBlockState state) {
+    public HitData(Vector3i position, MutableVector blockHitLocation, BlockFace closestDirection, MinestomWrappedBlockState state) {
         this.position = position;
         this.blockHitLocation = blockHitLocation;
         this.closestDirection = closestDirection;

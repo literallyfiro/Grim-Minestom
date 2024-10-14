@@ -3,15 +3,12 @@ package ac.grim.grimac.checks;
 import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.api.AbstractCheck;
 import ac.grim.grimac.api.config.ConfigManager;
-import ac.grim.grimac.api.events.FlagEvent;
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.common.ConfigReloadObserver;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
-import io.github.retrooper.packetevents.util.folia.FoliaScheduler;
 import lombok.Getter;
 import lombok.Setter;
-import org.bukkit.Bukkit;
+import net.minestom.server.network.packet.client.ClientPacket;
+import net.minestom.server.network.packet.client.common.ClientPongPacket;
 
 // Class from https://github.com/Tecnio/AntiCheatBase/blob/master/src/main/java/me/tecnio/anticheat/check/Check.java
 @Getter
@@ -63,10 +60,8 @@ public class Check implements AbstractCheck, ConfigReloadObserver {
     }
 
     public void updateExempted() {
-        if (player.bukkitPlayer == null || checkName == null) return;
-        FoliaScheduler.getEntityScheduler().run(player.bukkitPlayer, GrimAPI.INSTANCE.getPlugin(),
-                t -> exempted = player.bukkitPlayer.hasPermission("grim.exempt." + checkName.toLowerCase()),
-                () -> {});
+        if (checkName == null) return;
+        exempted = player.bukkitPlayer.hasPermission("grim.exempt." + checkName.toLowerCase());
     }
 
     public final boolean flagAndAlert(String verbose) {
@@ -85,10 +80,11 @@ public class Check implements AbstractCheck, ConfigReloadObserver {
         if (player.disableGrim || (experimental && !GrimAPI.INSTANCE.getConfigManager().isExperimentalChecks()) || exempted)
             return false; // Avoid calling event if disabled
 
-        FlagEvent event = new FlagEvent(player, this);
-        Bukkit.getPluginManager().callEvent(event);
-        if (event.isCancelled()) return false;
-
+//        TODO minestom event
+//        FlagEvent event = new FlagEvent(player, this);
+//        Bukkit.getPluginManager().callEvent(event);
+//        if (event.isCancelled()) return false;
+//
 
         player.punishmentManager.handleViolation(this);
 
@@ -141,9 +137,8 @@ public class Check implements AbstractCheck, ConfigReloadObserver {
         return offset > 0.001 ? String.format("%.5f", offset) : String.format("%.2E", offset);
     }
 
-    public boolean isTransaction(PacketTypeCommon packetType) {
-        return packetType == PacketType.Play.Client.PONG ||
-                packetType == PacketType.Play.Client.WINDOW_CONFIRMATION;
+    public boolean isTransaction(ClientPacket packetType) {
+        return packetType instanceof ClientPongPacket;
     }
 
     @Override

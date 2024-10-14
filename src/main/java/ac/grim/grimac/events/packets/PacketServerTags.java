@@ -2,21 +2,31 @@ package ac.grim.grimac.events.packets;
 
 import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketListenerAbstract;
-import com.github.retrooper.packetevents.event.PacketSendEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTags;
+import ac.grim.grimac.utils.minestom.EventPriority;
+import net.minestom.server.event.Event;
+import net.minestom.server.event.EventNode;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.event.player.PlayerPacketOutEvent;
+import net.minestom.server.network.ConnectionState;
+import net.minestom.server.network.packet.server.common.TagsPacket;
 
-public class PacketServerTags extends PacketListenerAbstract {
+public class PacketServerTags {
 
-    @Override
-    public void onPacketSend(PacketSendEvent event) {
-        if (event.getPacketType() == PacketType.Play.Server.TAGS || event.getPacketType() == PacketType.Configuration.Server.UPDATE_TAGS) {
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+    public PacketServerTags(EventNode<Event> globalNode) {
+        EventNode<Event> node = EventNode.all("packet-server-tags");
+        node.setPriority(EventPriority.NORMAL.ordinal());
+
+        node.addListener(PlayerPacketOutEvent.class, this::onPacketSend);
+
+        globalNode.addChild(node);
+    }
+
+    public void onPacketSend(PlayerPacketOutEvent event) {
+        if (event.getPacket() instanceof TagsPacket tags) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
 
-            WrapperPlayServerTags tags = new WrapperPlayServerTags(event);
-            final boolean isPlay = event.getPacketType() == PacketType.Play.Server.TAGS;
+            final boolean isPlay = event.getPacket().getId(ConnectionState.PLAY) == tags.playId();
             if (isPlay) {
                 player.latencyUtils.addRealTimeTask(player.lastTransactionSent.get(), () -> player.tagManager.handleTagSync(tags));
             } else {

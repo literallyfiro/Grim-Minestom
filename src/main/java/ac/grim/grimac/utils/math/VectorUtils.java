@@ -1,23 +1,23 @@
 package ac.grim.grimac.utils.math;
 
 import ac.grim.grimac.utils.collisions.datatypes.SimpleCollisionBox;
-import com.github.retrooper.packetevents.util.Vector3d;
-import org.bukkit.util.Vector;
+import ac.grim.grimac.utils.vector.MutableVector;
+import ac.grim.grimac.utils.vector.Vector3d;
 
 public class VectorUtils {
-    public static Vector cutBoxToVector(Vector vectorToCutTo, Vector min, Vector max) {
+    public static MutableVector cutBoxToVector(MutableVector vectorToCutTo, MutableVector min, MutableVector max) {
         SimpleCollisionBox box = new SimpleCollisionBox(min, max).sort();
         return cutBoxToVector(vectorToCutTo, box);
     }
 
-    public static Vector cutBoxToVector(Vector vectorCutTo, SimpleCollisionBox box) {
-        return new Vector(GrimMath.clamp(vectorCutTo.getX(), box.minX, box.maxX),
+    public static MutableVector cutBoxToVector(MutableVector vectorCutTo, SimpleCollisionBox box) {
+        return new MutableVector(GrimMath.clamp(vectorCutTo.getX(), box.minX, box.maxX),
                 GrimMath.clamp(vectorCutTo.getY(), box.minY, box.maxY),
                 GrimMath.clamp(vectorCutTo.getZ(), box.minZ, box.maxZ));
     }
 
-    public static Vector fromVec3d(Vector3d vector3d) {
-        return new Vector(vector3d.getX(), vector3d.getY(), vector3d.getZ());
+    public static MutableVector fromVec3d(Vector3d vector3d) {
+        return new MutableVector(vector3d.getX(), vector3d.getY(), vector3d.getZ());
     }
 
     // Clamping stops the player from causing an integer overflow and crashing the netty thread

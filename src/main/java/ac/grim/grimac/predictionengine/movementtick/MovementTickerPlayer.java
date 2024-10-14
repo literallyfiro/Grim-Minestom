@@ -5,8 +5,8 @@ import ac.grim.grimac.predictionengine.predictions.PredictionEngineLava;
 import ac.grim.grimac.predictionengine.predictions.PredictionEngineNormal;
 import ac.grim.grimac.predictionengine.predictions.PredictionEngineWater;
 import ac.grim.grimac.predictionengine.predictions.PredictionEngineWaterLegacy;
+import ac.grim.grimac.utils.ClientVersion;
 import ac.grim.grimac.utils.nmsutil.BlockProperties;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 
 public class MovementTickerPlayer extends MovementTicker {
     public MovementTickerPlayer(GrimPlayer player) {

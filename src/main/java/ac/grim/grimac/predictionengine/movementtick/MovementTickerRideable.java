@@ -1,9 +1,9 @@
 package ac.grim.grimac.predictionengine.movementtick;
 
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
 import ac.grim.grimac.utils.data.packetentity.PacketEntityRideable;
 import ac.grim.grimac.utils.nmsutil.Collisions;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 
 public class MovementTickerRideable extends MovementTickerLivingVehicle {
 

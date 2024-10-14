@@ -3,10 +3,10 @@ package ac.grim.grimac.checks.impl.scaffolding;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.BlockPlaceCheck;
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
 import ac.grim.grimac.utils.anticheat.update.BlockPlace;
 import ac.grim.grimac.utils.collisions.datatypes.SimpleCollisionBox;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateTypes;
+import net.minestom.server.instance.block.Block;
 
 import java.util.Collections;
 
@@ -19,7 +19,7 @@ public class PositionPlace extends BlockPlaceCheck {
 
     @Override
     public void onBlockPlace(final BlockPlace place) {
-        if (place.getMaterial() == StateTypes.SCAFFOLDING) return;
+        if (place.getMaterial() == Block.SCAFFOLDING) return;
 
         SimpleCollisionBox combined = getCombinedBox(place);
 
@@ -44,27 +44,20 @@ public class PositionPlace extends BlockPlaceCheck {
 
         // So now we have the player's possible eye positions
         // So then look at the face that the player has clicked
-        boolean flag = false;
-        switch (place.getDirection()) {
-            case NORTH: // Z- face
-                flag = eyePositions.minZ > combined.minZ;
-                break;
-            case SOUTH: // Z+ face
-                flag = eyePositions.maxZ < combined.maxZ;
-                break;
-            case EAST: // X+ face
-                flag = eyePositions.maxX < combined.maxX;
-                break;
-            case WEST: // X- face
-                flag = eyePositions.minX > combined.minX;
-                break;
-            case UP: // Y+ face
-                flag = eyePositions.maxY < combined.maxY;
-                break;
-            case DOWN: // Y- face
-                flag = eyePositions.minY > combined.minY;
-                break;
-        }
+        boolean flag = switch (place.getDirection()) {
+            case NORTH -> // Z- face
+                    eyePositions.minZ > combined.minZ;
+            case SOUTH -> // Z+ face
+                    eyePositions.maxZ < combined.maxZ;
+            case EAST -> // X+ face
+                    eyePositions.maxX < combined.maxX;
+            case WEST -> // X- face
+                    eyePositions.minX > combined.minX;
+            case TOP -> // Y+ face
+                    eyePositions.maxY < combined.maxY;
+            case BOTTOM -> // Y- face
+                    eyePositions.minY > combined.minY;
+        };
 
         if (flag) {
             if (flagAndAlert() && shouldModifyPackets() && shouldCancel()) {

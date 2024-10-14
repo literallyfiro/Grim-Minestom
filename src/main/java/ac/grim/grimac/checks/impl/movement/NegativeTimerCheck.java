@@ -5,7 +5,7 @@ import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PostPredictionCheck;
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.anticheat.update.PredictionComplete;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
+import net.minestom.server.event.player.PlayerPacketEvent;
 
 @CheckData(name = "NegativeTimer", configName = "NegativeTimer", setback = 10, experimental = true)
 public class NegativeTimerCheck extends TimerCheck implements PostPredictionCheck {
@@ -30,7 +30,7 @@ public class NegativeTimerCheck extends TimerCheck implements PostPredictionChec
     }
 
     @Override
-    public void doCheck(final PacketReceiveEvent event) {
+    public void doCheck(final PlayerPacketEvent event) {
         // We don't know if the player is ticking stable, therefore we must wait until prediction
         // determines this.  Do nothing here!
     }

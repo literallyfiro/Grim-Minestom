@@ -1,7 +1,7 @@
 package ac.grim.grimac.utils.collisions;
 
 import ac.grim.grimac.utils.collisions.datatypes.SimpleCollisionBox;
-import com.github.retrooper.packetevents.protocol.world.BlockFace;
+import net.minestom.server.instance.block.BlockFace;
 
 public enum AxisUtil {
     EAST(box -> {
@@ -54,36 +54,22 @@ public enum AxisUtil {
     }
 
     public static AxisSelect getAxis(BlockFace face) {
-        switch (face) {
-            case EAST:
-                return EAST.select;
-            case WEST:
-                return WEST.select;
-            case NORTH:
-                return NORTH.select;
-            case SOUTH:
-                return SOUTH.select;
-            case UP:
-                return UP.select;
-            case DOWN:
-            default:
-                return DOWN.select;
-        }
+        return switch (face) {
+            case EAST -> EAST.select;
+            case WEST -> WEST.select;
+            case NORTH -> NORTH.select;
+            case SOUTH -> SOUTH.select;
+            case TOP -> UP.select;
+            default -> DOWN.select;
+        };
     }
 
     public static boolean isSameAxis(BlockFace one, BlockFace two) {
-        switch (one) {
-        case WEST:
-        case EAST:
-            return two == BlockFace.WEST || two == BlockFace.EAST;
-        case NORTH:
-        case SOUTH:
-            return two == BlockFace.NORTH || two == BlockFace.SOUTH;
-        case UP:
-        case DOWN:
-            return two == BlockFace.UP || two == BlockFace.DOWN;
-        default:
-            return false;
-        }
+        return switch (one) {
+            case WEST, EAST -> two == BlockFace.WEST || two == BlockFace.EAST;
+            case NORTH, SOUTH -> two == BlockFace.NORTH || two == BlockFace.SOUTH;
+            case TOP, BOTTOM -> two == BlockFace.TOP || two == BlockFace.BOTTOM;
+            default -> false;
+        };
     }
 }

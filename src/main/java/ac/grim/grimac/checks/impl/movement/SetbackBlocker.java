@@ -3,21 +3,22 @@ package ac.grim.grimac.checks.impl.movement;
 import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.util.Vector3d;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
+import ac.grim.grimac.utils.WrapperPlayClientPlayerFlying;
+import ac.grim.grimac.utils.vector.Vector3d;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.play.ClientInteractEntityPacket;
+import net.minestom.server.network.packet.client.play.ClientPlayerRotationPacket;
+import net.minestom.server.network.packet.client.play.ClientVehicleMovePacket;
 
 public class SetbackBlocker extends Check implements PacketCheck {
     public SetbackBlocker(GrimPlayer playerData) {
         super(playerData);
     }
 
-    public void onPacketReceive(final PacketReceiveEvent event) {
+    public void onPacketReceive(final PlayerPacketEvent event) {
         if (player.disableGrim) return; // Let's avoid letting people disable grim with grim.nomodifypackets
 
-        if (event.getPacketType() == PacketType.Play.Client.INTERACT_ENTITY) {
+        if (event.getPacket() instanceof ClientInteractEntityPacket) {
             if (player.getSetbackTeleportUtil().cheatVehicleInterpolationDelay > 0) {
                 event.setCancelled(true); // Player is in the vehicle
             }
@@ -26,14 +27,14 @@ public class SetbackBlocker extends Check implements PacketCheck {
         // Don't block teleport packets
         if (player.packetStateData.lastPacketWasTeleport) return;
 
-        if (WrapperPlayClientPlayerFlying.isFlying(event.getPacketType())) {
+        if (WrapperPlayClientPlayerFlying.isFlying(event.getPacket())) {
             // The player must obey setbacks
             if (player.getSetbackTeleportUtil().shouldBlockMovement()) {
                 event.setCancelled(true);
             }
 
             // Look is the only valid packet to send while in a vehicle
-            if (player.compensatedEntities.getSelf().inVehicle() && event.getPacketType() != PacketType.Play.Client.PLAYER_ROTATION && !player.packetStateData.lastPacketWasTeleport) {
+            if (player.compensatedEntities.getSelf().inVehicle() && !(event.getPacket() instanceof ClientPlayerRotationPacket) && !player.packetStateData.lastPacketWasTeleport) {
                 event.setCancelled(true);
             }
 
@@ -48,7 +49,7 @@ public class SetbackBlocker extends Check implements PacketCheck {
             }
         }
 
-        if (event.getPacketType() == PacketType.Play.Client.VEHICLE_MOVE) {
+        if (event.getPacket() instanceof ClientVehicleMovePacket) {
             if (player.getSetbackTeleportUtil().shouldBlockMovement()) {
                 event.setCancelled(true);
             }

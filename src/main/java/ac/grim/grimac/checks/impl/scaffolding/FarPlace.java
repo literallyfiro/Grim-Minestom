@@ -6,12 +6,10 @@ import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.anticheat.update.BlockPlace;
 import ac.grim.grimac.utils.collisions.datatypes.SimpleCollisionBox;
 import ac.grim.grimac.utils.math.VectorUtils;
-import com.github.retrooper.packetevents.protocol.attribute.Attributes;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.player.GameMode;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateTypes;
-import com.github.retrooper.packetevents.util.Vector3i;
-import org.bukkit.util.Vector;
+import ac.grim.grimac.utils.vector.MutableVector;
+import ac.grim.grimac.utils.vector.Vector3i;
+import net.minestom.server.entity.attribute.Attribute;
+import net.minestom.server.instance.block.Block;
 
 @CheckData(name = "FarPlace")
 public class FarPlace extends BlockPlaceCheck {
@@ -23,19 +21,19 @@ public class FarPlace extends BlockPlaceCheck {
     public void onBlockPlace(final BlockPlace place) {
         Vector3i blockPos = place.getPlacedAgainstBlockLocation();
 
-        if (place.getMaterial() == StateTypes.SCAFFOLDING) return;
+        if (place.getMaterial() == Block.SCAFFOLDING) return;
 
         double min = Double.MAX_VALUE;
         for (double d : player.getPossibleEyeHeights()) {
             SimpleCollisionBox box = new SimpleCollisionBox(blockPos);
-            Vector eyes = new Vector(player.x, player.y + d, player.z);
-            Vector best = VectorUtils.cutBoxToVector(eyes, box);
+            MutableVector eyes = new MutableVector(player.x, player.y + d, player.z);
+            MutableVector best = VectorUtils.cutBoxToVector(eyes, box);
             min = Math.min(min, eyes.distanceSquared(best));
         }
 
         // getPickRange() determines this?
         // With 1.20.5+ the new attribute determines creative mode reach using a modifier
-        double maxReach = player.compensatedEntities.getSelf().getAttributeValue(Attributes.PLAYER_BLOCK_INTERACTION_RANGE);
+        double maxReach = player.compensatedEntities.getSelf().getAttributeValue(Attribute.PLAYER_BLOCK_INTERACTION_RANGE);
         double threshold = player.getMovementThreshold();
         maxReach += Math.hypot(threshold, threshold);
 

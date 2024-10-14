@@ -2,8 +2,9 @@ package ac.grim.grimac.checks.impl.movement;
 
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
+import net.minestom.server.network.packet.client.ClientPacket;
+import net.minestom.server.network.packet.client.play.ClientSteerVehiclePacket;
+import net.minestom.server.network.packet.client.play.ClientVehicleMovePacket;
 
 @CheckData(name = "Timer - Vehicle", configName = "TimerVehicle", setback = 10)
 public class VehicleTimer extends TimerCheck {
@@ -14,16 +15,16 @@ public class VehicleTimer extends TimerCheck {
     }
 
     @Override
-    public boolean shouldCountPacketForTimer(PacketTypeCommon packetType) {
+    public boolean shouldCountPacketForTimer(ClientPacket packetType) {
         // Ignore teleports
         if (player.packetStateData.lastPacketWasTeleport) return false;
 
-        if (packetType == PacketType.Play.Client.VEHICLE_MOVE) {
+        if (packetType instanceof ClientVehicleMovePacket) {
             isDummy = false;
             return true; // Client controlling vehicle
         }
 
-        if (packetType == PacketType.Play.Client.STEER_VEHICLE) {
+        if (packetType instanceof ClientSteerVehiclePacket) {
             if (isDummy) { // Server is controlling vehicle
                 return true;
             }

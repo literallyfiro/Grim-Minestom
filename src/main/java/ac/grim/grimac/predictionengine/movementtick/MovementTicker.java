@@ -4,28 +4,22 @@ import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.predictionengine.PlayerBaseTick;
 import ac.grim.grimac.predictionengine.predictions.PredictionEngine;
 import ac.grim.grimac.predictionengine.predictions.PredictionEngineElytra;
+import ac.grim.grimac.utils.ClientVersion;
 import ac.grim.grimac.utils.collisions.datatypes.SimpleCollisionBox;
 import ac.grim.grimac.utils.data.VectorData;
 import ac.grim.grimac.utils.data.packetentity.PacketEntity;
 import ac.grim.grimac.utils.data.packetentity.PacketEntityStrider;
+import ac.grim.grimac.utils.minestom.BlockTags;
+import ac.grim.grimac.utils.vector.MutableVector;
+import ac.grim.grimac.utils.vector.Vector3d;
 import ac.grim.grimac.utils.math.GrimMath;
 import ac.grim.grimac.utils.nmsutil.*;
-import com.github.retrooper.packetevents.protocol.attribute.Attributes;
 import ac.grim.grimac.utils.team.EntityPredicates;
 import ac.grim.grimac.utils.team.TeamHandler;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.manager.server.ServerVersion;
-import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.potion.PotionTypes;
-import com.github.retrooper.packetevents.protocol.world.states.defaulttags.BlockTags;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateType;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateTypes;
-import com.github.retrooper.packetevents.util.Vector3d;
-import org.bukkit.Bukkit;
-import com.viaversion.viaversion.api.Via;
-import io.github.retrooper.packetevents.util.viaversion.ViaVersionUtil;
-import org.bukkit.util.Vector;
+import net.minestom.server.entity.EntityType;
+import net.minestom.server.entity.attribute.Attribute;
+import net.minestom.server.instance.block.Block;
+import net.minestom.server.potion.PotionEffect;
 
 public class MovementTicker {
     public final GrimPlayer player;
@@ -36,10 +30,10 @@ public class MovementTicker {
 
     public static void handleEntityCollisions(GrimPlayer player) {
         // 1.7 and 1.8 do not have player collision
-        if (player.getClientVersion().isOlderThan(ClientVersion.V_1_9)
+        if (player.getClientVersion().isOlderThan(ClientVersion.V_1_9)) return;
                 // Check that ViaVersion disables all collisions on a 1.8 server for 1.9+ clients
-                || (PacketEvents.getAPI().getServerManager().getVersion().isOlderThan(ServerVersion.V_1_9)
-                    && (!ViaVersionUtil.isAvailable() || Via.getConfig().isPreventCollision()))) return;
+//                || (PacketEvents.getAPI().getServerManager().getVersion().isOlderThan(ServerVersion.V_1_9)
+//                    && (!ViaVersionUtil.isAvailable() || Via.getConfig().isPreventCollision()))) return;
 
         int possibleCollidingEntities = 0;
 
@@ -57,8 +51,7 @@ public class MovementTicker {
                     continue;
 
                 // 1.9+ player on 1.8- server with ViaVersion prevent-collision disabled.
-                if (PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_9)
-                        && !EntityPredicates.canBePushedBy(player, entity, teamHandler).test(player)) continue;
+                if (!EntityPredicates.canBePushedBy(player, entity, teamHandler).test(player)) continue;
 
                 SimpleCollisionBox entityBox = entity.getPossibleCollisionBoxes();
 
@@ -78,9 +71,9 @@ public class MovementTicker {
         player.uncertaintyHandler.collidingEntities.add(possibleCollidingEntities);
     }
 
-    public void move(Vector inputVel, Vector collide) {
+    public void move(MutableVector inputVel, MutableVector collide) {
         if (player.stuckSpeedMultiplier.getX() < 0.99) {
-            player.clientVelocity = new Vector();
+            player.clientVelocity = new MutableVector();
         }
 
         if (inputVel.getX() != collide.getX()) {
@@ -142,7 +135,7 @@ public class MovementTicker {
         }
 
         player.mainSupportingBlockData = MainSupportingBlockPosFinder.findMainSupportingBlockPos(player, player.mainSupportingBlockData, new Vector3d(collide.getX(), collide.getY(), collide.getZ()), player.boundingBox, player.onGround);
-        StateType onBlock = BlockProperties.getOnPos(player, player.mainSupportingBlockData, new Vector3d(player.x, player.y, player.z));
+        Block onBlock = BlockProperties.getOnPos(player, player.mainSupportingBlockData, new Vector3d(player.x, player.y, player.z));
 
         // Hack with 1.14+ poses issue
         if (inputVel.getY() != collide.getY()) {
@@ -150,7 +143,7 @@ public class MovementTicker {
             // And the block is a slime block
             // Or the block is honey and was replaced by viaversion
             if (player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_8)
-                    && (onBlock == StateTypes.SLIME_BLOCK || (onBlock == StateTypes.HONEY_BLOCK && player.getClientVersion().isOlderThanOrEquals(ClientVersion.V_1_14_4)))) {
+                    && (onBlock == Block.SLIME_BLOCK || (onBlock == Block.HONEY_BLOCK && player.getClientVersion().isOlderThanOrEquals(ClientVersion.V_1_14_4)))) {
                 if (player.isSneaking) { // Slime blocks use shifting instead of sneaking
                     player.clientVelocity.setY(0);
                 } else {
@@ -173,21 +166,21 @@ public class MovementTicker {
 
         // The game disregards movements smaller than 1e-7 (such as in boats)
         if (collide.lengthSquared() < 1e-7) {
-            collide = new Vector();
+            collide = new MutableVector();
         }
 
         // This is where vanilla moves the bounding box and sets it
         player.predictedVelocity = new VectorData(collide.clone(), player.predictedVelocity.lastVector, player.predictedVelocity.vectorType);
 
         float f = BlockProperties.getBlockSpeedFactor(player, player.mainSupportingBlockData, new Vector3d(player.x, player.y, player.z));
-        player.clientVelocity.multiply(new Vector(f, 1, f));
+        player.clientVelocity.multiply(new MutableVector(f, 1, f));
 
         // Reset stuck speed so it can update
         if (player.stuckSpeedMultiplier.getX() < 0.99) {
             player.uncertaintyHandler.lastStuckSpeedMultiplier.reset();
         }
 
-        player.stuckSpeedMultiplier = new Vector(1, 1, 1);
+        player.stuckSpeedMultiplier = new MutableVector(1, 1, 1);
 
         // 1.15 and older clients use the handleInsideBlocks method for lava
         if (player.getClientVersion().isOlderThan(ClientVersion.V_1_16))
@@ -202,7 +195,7 @@ public class MovementTicker {
 
         // Flying players are not affected by cobwebs/sweet berry bushes
         if (player.isFlying) {
-            player.stuckSpeedMultiplier = new Vector(1, 1, 1);
+            player.stuckSpeedMultiplier = new MutableVector(1, 1, 1);
         }
     }
 
@@ -327,8 +320,8 @@ public class MovementTicker {
 
     public void livingEntityTravel() {
         double playerGravity = player.compensatedEntities.getSelf().getRiding() == null
-                ? player.compensatedEntities.getSelf().getAttributeValue(Attributes.GENERIC_GRAVITY)
-                : player.compensatedEntities.getSelf().getRiding().getAttributeValue(Attributes.GENERIC_GRAVITY);
+                ? player.compensatedEntities.getSelf().getAttributeValue(Attribute.GENERIC_GRAVITY)
+                : player.compensatedEntities.getSelf().getRiding().getAttributeValue(Attribute.GENERIC_GRAVITY);
 
         boolean isFalling = player.actualMovement.getY() <= 0.0;
         if (isFalling && player.compensatedEntities.getSlowFallingAmplifier().isPresent()) {
@@ -348,7 +341,7 @@ public class MovementTicker {
         if (player.wasTouchingWater && !player.isFlying) {
             // 0.8F seems hardcoded in
             // 1.13+ players on skeleton horses swim faster! Cool feature.
-            boolean isSkeletonHorse = player.compensatedEntities.getSelf().getRiding() != null && player.compensatedEntities.getSelf().getRiding().getType() == EntityTypes.SKELETON_HORSE && player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_13);
+            boolean isSkeletonHorse = player.compensatedEntities.getSelf().getRiding() != null && player.compensatedEntities.getSelf().getRiding().getType() == EntityType.SKELETON_HORSE && player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_13);
             swimFriction = player.isSprinting && player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_13) ? 0.9F : (isSkeletonHorse ? 0.96F : 0.8F);
             float swimSpeed = 0.02F;
 
@@ -366,7 +359,7 @@ public class MovementTicker {
                 swimSpeed += (player.speed - swimSpeed) * player.depthStriderLevel / divisor;
             }
 
-            if (player.compensatedEntities.getPotionLevelForPlayer(PotionTypes.DOLPHINS_GRACE).isPresent()) {
+            if (player.compensatedEntities.getPotionLevelForPlayer(PotionEffect.DOLPHINS_GRACE).isPresent()) {
                 swimFriction = 0.96F;
             }
 
@@ -389,14 +382,14 @@ public class MovementTicker {
 
                 // Lava movement changed in 1.16
                 if (player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_16) && player.slightlyTouchingLava) {
-                    player.clientVelocity = player.clientVelocity.multiply(new Vector(0.5D, 0.800000011920929D, 0.5D));
+                    player.clientVelocity = player.clientVelocity.multiply(new MutableVector(0.5D, 0.800000011920929D, 0.5D));
                     player.clientVelocity = FluidFallingAdjustedMovement.getFluidFallingAdjustedMovement(player, playerGravity, isFalling, player.clientVelocity);
                 } else {
                     player.clientVelocity.multiply(0.5D);
                 }
 
                 if (player.hasGravity)
-                    player.clientVelocity.add(new Vector(0.0D, -playerGravity / 4.0D, 0.0D));
+                    player.clientVelocity.add(new MutableVector(0.0D, -playerGravity / 4.0D, 0.0D));
 
             } else if (player.isGliding) {
                 player.friction = 0.99F; // Not vanilla, just useful for other grim stuff

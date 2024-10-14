@@ -3,15 +3,15 @@ package ac.grim.grimac.checks.impl.scaffolding;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.BlockPlaceCheck;
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
+import ac.grim.grimac.utils.WrapperPlayClientPlayerFlying;
 import ac.grim.grimac.utils.anticheat.MessageUtil;
 import ac.grim.grimac.utils.anticheat.update.BlockPlace;
 import ac.grim.grimac.utils.anticheat.update.PredictionComplete;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.world.BlockFace;
-import com.github.retrooper.packetevents.util.Vector3f;
-import com.github.retrooper.packetevents.util.Vector3i;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
+import ac.grim.grimac.utils.vector.Vector3f;
+import ac.grim.grimac.utils.vector.Vector3i;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.instance.block.BlockFace;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,8 +55,8 @@ public class MultiPlace extends BlockPlaceCheck {
     }
 
     @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
-        if (WrapperPlayClientPlayerFlying.isFlying(event.getPacketType()) && !player.packetStateData.lastPacketWasTeleport && !player.packetStateData.lastPacketWasOnePointSeventeenDuplicate) {
+    public void onPacketReceive(PlayerPacketEvent event) {
+        if (WrapperPlayClientPlayerFlying.isFlying(event.getPacket()) && !player.packetStateData.lastPacketWasTeleport && !player.packetStateData.lastPacketWasOnePointSeventeenDuplicate) {
             hasPlaced = false;
         }
     }

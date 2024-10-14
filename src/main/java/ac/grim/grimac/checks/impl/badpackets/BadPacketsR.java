@@ -4,9 +4,11 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.player.GameMode;
+import net.minestom.server.entity.GameMode;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.play.ClientPlayerPositionAndRotationPacket;
+import net.minestom.server.network.packet.client.play.ClientPlayerPositionPacket;
+import net.minestom.server.network.packet.client.play.ClientSteerVehiclePacket;
 
 @CheckData(name = "BadPacketsR", decay = 0.25, experimental = true)
 public class BadPacketsR extends Check implements PacketCheck {
@@ -20,8 +22,8 @@ public class BadPacketsR extends Check implements PacketCheck {
     private int oldTransId = 0;
 
     @Override
-    public void onPacketReceive(final PacketReceiveEvent event) {
-        if (isTransaction(event.getPacketType()) && player.packetStateData.lastTransactionPacketWasValid) {
+    public void onPacketReceive(final PlayerPacketEvent event) {
+        if (isTransaction(event.getPacket()) && player.packetStateData.lastTransactionPacketWasValid) {
             long ms = (player.getPlayerClockAtLeast() - clock) / 1000000L;
             long diff = (System.currentTimeMillis() - lastTransTime);
             if (diff > 2000 && ms > 2000) {
@@ -38,10 +40,10 @@ public class BadPacketsR extends Check implements PacketCheck {
             }
         }
         //
-        if ((event.getPacketType() == PacketType.Play.Client.PLAYER_POSITION_AND_ROTATION ||
-                event.getPacketType() == PacketType.Play.Client.PLAYER_POSITION) && !player.compensatedEntities.getSelf().inVehicle()) {
+        if ((event.getPacket() instanceof ClientPlayerPositionAndRotationPacket ||
+                event.getPacket() instanceof ClientPlayerPositionPacket) && !player.compensatedEntities.getSelf().inVehicle()) {
             positions++;
-        } else if (event.getPacketType() == PacketType.Play.Client.STEER_VEHICLE && player.compensatedEntities.getSelf().inVehicle()) {
+        } else if (event.getPacket() instanceof ClientSteerVehiclePacket && player.compensatedEntities.getSelf().inVehicle()) {
             positions++;
         }
     }

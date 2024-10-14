@@ -4,12 +4,15 @@ import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.inventory.Inventory;
 import ac.grim.grimac.utils.inventory.InventoryStorage;
-import com.github.retrooper.packetevents.protocol.item.ItemStack;
-import io.github.retrooper.packetevents.util.SpigotConversionUtil;
-import io.github.retrooper.packetevents.util.folia.FoliaScheduler;
-import org.bukkit.inventory.InventoryView;
+import ac.grim.grimac.utils.inventory.ModifiableItemStack;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -73,7 +76,7 @@ public class CorrectingPlayerInventoryStorage extends InventoryStorage {
     // This is more meant for pre-1.17 clients, but mojang fucked up netcode AGAIN in 1.17, so
     // we must use this for 1.17 clients as well... at least you tried Mojang.
     @Override
-    public void setItem(int item, ItemStack stack) {
+    public void setItem(int item, ModifiableItemStack stack) {
         // If there is a more recent change to this one, don't override it
         Integer finalTransaction = serverIsCurrentlyProcessingThesePredictions.get(item);
 
@@ -95,21 +98,17 @@ public class CorrectingPlayerInventoryStorage extends InventoryStorage {
         if (!player.getInventory().isPacketInventoryActive) return;
 
         // Bukkit uses different slot ID's to vanilla
-        int bukkitSlot = player.getInventory().getBukkitSlot(slot); // 8 -> 39, should be 36
+        //int bukkitSlot = player.getInventory().getBukkitSlot(slot); // 8 -> 39, should be 36
 
-        if (bukkitSlot != -1) {
-            org.bukkit.inventory.ItemStack bukkitItem = player.bukkitPlayer.getInventory().getItem(bukkitSlot);
+//        if (slot != -1) {
+        ModifiableItemStack item = new ModifiableItemStack(player.bukkitPlayer.getInventory().getItemStack(slot));
+        ModifiableItemStack existing = getItem(slot);
 
-            ItemStack existing = getItem(slot);
-            ItemStack toPE = SpigotConversionUtil.fromBukkitItemStack(bukkitItem);
-
-            if (existing.getType() != toPE.getType() || existing.getAmount() != toPE.getAmount()) {
-                FoliaScheduler.getEntityScheduler().execute(player.bukkitPlayer, GrimAPI.INSTANCE.getPlugin(), () -> {
-                    player.bukkitPlayer.updateInventory();
-                }, null, 0);
-                setItem(slot, toPE);
-            }
+        if (existing.getType() != item.getType() || existing.getAmount() != item.getAmount()) {
+            player.bukkitPlayer.getInventory().update();
+            setItem(slot, item);
         }
+//        }
     }
 
     public void tickWithBukkit() {
@@ -125,16 +124,15 @@ public class CorrectingPlayerInventoryStorage extends InventoryStorage {
         }
 
         if (player.getInventory().needResend) {
-            FoliaScheduler.getEntityScheduler().execute(player.bukkitPlayer, GrimAPI.INSTANCE.getPlugin(), () -> {
-                // Potential race condition doing this multiple times
-                if (!player.getInventory().needResend) return;
+            if (!player.getInventory().needResend) return;
 
-                InventoryView view = player.bukkitPlayer.getOpenInventory();
-                if (SUPPORTED_INVENTORIES.contains(view.getType().toString().toUpperCase(Locale.ROOT))) {
+            net.minestom.server.inventory.Inventory view = player.bukkitPlayer.getOpenInventory();
+            if (view != null) {
+                if (SUPPORTED_INVENTORIES.contains(view.getInventoryType().name().toUpperCase(Locale.ROOT))) {
                     player.getInventory().needResend = false;
-                    player.bukkitPlayer.updateInventory();
+                    player.bukkitPlayer.getInventory().update();
                 }
-            }, null, 0);
+            }
         }
 
         // Every five ticks, we pull a new item for the player

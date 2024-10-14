@@ -4,40 +4,49 @@ import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.checks.impl.movement.NoSlowA;
 import ac.grim.grimac.checks.impl.movement.NoSlowD;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.event.PacketListenerAbstract;
-import com.github.retrooper.packetevents.event.PacketListenerPriority;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.manager.server.ServerVersion;
-import com.github.retrooper.packetevents.protocol.component.ComponentTypes;
-import com.github.retrooper.packetevents.protocol.component.builtin.item.FoodProperties;
-import com.github.retrooper.packetevents.protocol.item.ItemStack;
-import com.github.retrooper.packetevents.protocol.item.enchantment.type.EnchantmentTypes;
-import com.github.retrooper.packetevents.protocol.item.type.ItemType;
-import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
-import com.github.retrooper.packetevents.protocol.nbt.NBTCompound;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.player.DiggingAction;
-import com.github.retrooper.packetevents.protocol.player.GameMode;
-import com.github.retrooper.packetevents.protocol.player.InteractionHand;
-import com.github.retrooper.packetevents.protocol.world.BlockFace;
-import com.github.retrooper.packetevents.wrapper.play.client.*;
-import org.bukkit.Bukkit;
+import ac.grim.grimac.utils.ClientVersion;
+import ac.grim.grimac.utils.EnchantmentUtils;
+import ac.grim.grimac.utils.WrapperPlayClientPlayerFlying;
+import ac.grim.grimac.utils.inventory.ModifiableItemStack;
+import ac.grim.grimac.utils.minestom.EventPriority;
+import ac.grim.grimac.utils.minestom.ItemTags;
+import net.kyori.adventure.nbt.CompoundBinaryTag;
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.entity.GameMode;
+import net.minestom.server.entity.Player;
+import net.minestom.server.event.Event;
+import net.minestom.server.event.EventNode;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.item.ItemComponent;
+import net.minestom.server.item.Material;
+import net.minestom.server.item.component.Food;
+import net.minestom.server.item.enchant.Enchantment;
+import net.minestom.server.network.packet.client.play.ClientHeldItemChangePacket;
+import net.minestom.server.network.packet.client.play.ClientPlayerBlockPlacementPacket;
+import net.minestom.server.network.packet.client.play.ClientPlayerDiggingPacket;
+import net.minestom.server.network.packet.client.play.ClientUseItemPacket;
 
-public class PacketPlayerDigging extends PacketListenerAbstract {
+public class PacketPlayerDigging {
 
-    public PacketPlayerDigging() {
-        super(PacketListenerPriority.LOW);
+//    public PacketPlayerDigging() {
+//        super(PacketListenerPriority.LOW);
+//    }
+    public PacketPlayerDigging(EventNode<Event> globalNode) {
+        EventNode<Event> node = EventNode.all("packet-player-digging");
+        node.setPriority(EventPriority.LOW.ordinal());
+
+        node.addListener(PlayerPacketEvent.class, this::onPacketReceive);
+
+        globalNode.addChild(node);
     }
 
-    public static void handleUseItem(GrimPlayer player, ItemStack item, InteractionHand hand) {
+    public static void handleUseItem(GrimPlayer player, ModifiableItemStack item, Player.Hand hand) {
         if (item == null) {
             player.packetStateData.setSlowedByUsingItem(false);
             return;
         }
 
-        final ItemType material = item.getType();
+        final Material material = item.getType();
 
         if (player.checkManager.getCompensatedCooldown().hasMaterial(material)) {
             player.packetStateData.setSlowedByUsingItem(false); // resync, not required
@@ -45,9 +54,9 @@ public class PacketPlayerDigging extends PacketListenerAbstract {
         }
 
         // Check for data component stuff on 1.20.5+
-        final FoodProperties foodComponent = item.getComponentOr(ComponentTypes.FOOD, null);
+        Food foodComponent = item.getItemStack().get(ItemComponent.FOOD);
         if (player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_20_5) && foodComponent != null) {
-            if (foodComponent.isCanAlwaysEat() || player.food < 20 || player.gamemode == GameMode.CREATIVE) {
+            if (foodComponent.canAlwaysEat() || player.food < 20 || player.gamemode == GameMode.CREATIVE) {
                 player.packetStateData.setSlowedByUsingItem(true);
                 player.packetStateData.eatingHand = hand;
                 return;
@@ -57,30 +66,31 @@ public class PacketPlayerDigging extends PacketListenerAbstract {
         }
 
         // 1.14 and below players cannot eat in creative, exceptions are potions or milk
-        if (material.hasAttribute(ItemTypes.ItemAttribute.EDIBLE) &&
+        boolean isEdible = item.getItemStack().get(ItemComponent.FOOD) != null;
+        if (isEdible &&
                 (player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_15) || player.gamemode != GameMode.CREATIVE)
-                || material == ItemTypes.POTION || material == ItemTypes.MILK_BUCKET) {
+                || material == Material.POTION || material == Material.MILK_BUCKET) {
 
             // Pls have this mapped correctly retrooper
-            if (item.getType() == ItemTypes.SPLASH_POTION)
+            if (item.getType() == Material.SPLASH_POTION)
                 return;
             // 1.8 splash potion
-            if (PacketEvents.getAPI().getServerManager().getVersion().isOlderThan(ServerVersion.V_1_9) && item.getLegacyData() > 16384) {
-                return;
-            }
+//            if (PacketEvents.getAPI().getServerManager().getVersion().isOlderThan(ServerVersion.V_1_9) && item.getLegacyData() > 16384) {
+//                return;
+//            }
 
             // Eatable items that don't require any hunger to eat
-            if (material == ItemTypes.POTION || material == ItemTypes.MILK_BUCKET
-                    || material == ItemTypes.GOLDEN_APPLE || material == ItemTypes.ENCHANTED_GOLDEN_APPLE
-                    || material == ItemTypes.HONEY_BOTTLE || material == ItemTypes.SUSPICIOUS_STEW ||
-                    material == ItemTypes.CHORUS_FRUIT) {
+            if (material == Material.POTION || material == Material.MILK_BUCKET
+                    || material == Material.GOLDEN_APPLE || material == Material.ENCHANTED_GOLDEN_APPLE
+                    || material == Material.HONEY_BOTTLE || material == Material.SUSPICIOUS_STEW ||
+                    material == Material.CHORUS_FRUIT) {
                 player.packetStateData.setSlowedByUsingItem(true);
                 player.packetStateData.eatingHand = hand;
                 return;
             }
 
             // The other items that do require it
-            if (item.getType().hasAttribute(ItemTypes.ItemAttribute.EDIBLE) && ((player.bukkitPlayer != null && player.food < 20) || player.gamemode == GameMode.CREATIVE)) {
+            if (isEdible && ((player.food < 20) || player.gamemode == GameMode.CREATIVE)) {
                 player.packetStateData.setSlowedByUsingItem(true);
                 player.packetStateData.eatingHand = hand;
                 return;
@@ -90,31 +100,31 @@ public class PacketPlayerDigging extends PacketListenerAbstract {
             player.packetStateData.setSlowedByUsingItem(false);
         }
 
-        if (material == ItemTypes.SHIELD && player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_9)) {
+        if (material == Material.SHIELD && player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_9)) {
             player.packetStateData.setSlowedByUsingItem(true);
             player.packetStateData.eatingHand = hand;
             return;
         }
 
         // Avoid releasing crossbow as being seen as slowing player
-        final NBTCompound nbt = item.getNBT(); // How can this be null?
-        if (material == ItemTypes.CROSSBOW && nbt != null && nbt.getBoolean("Charged")) {
+        final CompoundBinaryTag nbt = item.getItemStack().toItemNBT(); // How can this be null?
+        if (material == Material.CROSSBOW && nbt.getBoolean("Charged")) {
             player.packetStateData.setSlowedByUsingItem(false); // TODO: Fix this
             return;
         }
 
         // The client and server don't agree on trident status because mojang is incompetent at netcode.
-        if (material == ItemTypes.TRIDENT
+        if (material == Material.TRIDENT
                 && item.getDamageValue() < item.getMaxDamage() - 1 // Player can't use item if it's "about to break"
                 && (player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_13_2)
                 || player.getClientVersion().isOlderThanOrEquals(ClientVersion.V_1_8))) {
-            player.packetStateData.setSlowedByUsingItem(item.getEnchantmentLevel(EnchantmentTypes.RIPTIDE, PacketEvents.getAPI().getServerManager().getVersion().toClientVersion()) <= 0);
+            player.packetStateData.setSlowedByUsingItem(EnchantmentUtils.getEnchantmentLevel(item.getItemStack(), Enchantment.RIPTIDE) <= 0);
             player.packetStateData.eatingHand = hand;
         }
 
         // Players in survival can't use a bow without an arrow
         // Crossbow charge checked previously
-        if (material == ItemTypes.BOW || material == ItemTypes.CROSSBOW) {
+        if (material == Material.BOW || material == Material.CROSSBOW) {
                 /*player.packetStateData.slowedByUsingItem = player.gamemode == GameMode.CREATIVE ||
                         player.getInventory().hasItemType(ItemTypes.ARROW) ||
                         player.getInventory().hasItemType(ItemTypes.TIPPED_ARROW) ||
@@ -128,67 +138,61 @@ public class PacketPlayerDigging extends PacketListenerAbstract {
             player.packetStateData.setSlowedByUsingItem(false);
         }
 
-        if (material == ItemTypes.SPYGLASS && player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_17)) {
+        if (material == Material.SPYGLASS && player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_17)) {
             player.packetStateData.setSlowedByUsingItem(true);
             player.packetStateData.eatingHand = hand;
         }
 
-        if (material == ItemTypes.GOAT_HORN && player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_19)) {
+        if (material == Material.GOAT_HORN && player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_19)) {
             player.packetStateData.setSlowedByUsingItem(true);
             player.packetStateData.eatingHand = hand;
         }
 
         // Only 1.8 and below players can block with swords
-        if (material.hasAttribute(ItemTypes.ItemAttribute.SWORD)) {
+        if (ItemTags.SWORDS.contains(material)) {
             if (player.getClientVersion().isOlderThanOrEquals(ClientVersion.V_1_8))
                 player.packetStateData.setSlowedByUsingItem(true);
-            else if (PacketEvents.getAPI().getServerManager().getVersion().isOlderThan(ServerVersion.V_1_9)) // ViaVersion stuff
-                player.packetStateData.setSlowedByUsingItem(false);
+//            else if (PacketEvents.getAPI().getServerManager().getVersion().isOlderThan(ServerVersion.V_1_9)) // ViaVersion stuff
+//                player.packetStateData.setSlowedByUsingItem(false);
         }
     }
 
-    @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
-        if (event.getPacketType() == PacketType.Play.Client.PLAYER_DIGGING) {
-            WrapperPlayClientPlayerDigging dig = new WrapperPlayClientPlayerDigging(event);
-
-            if (dig.getAction() == DiggingAction.RELEASE_USE_ITEM) {
-                final GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+    public void onPacketReceive(PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientPlayerDiggingPacket dig) {
+            if (dig.status() == ClientPlayerDiggingPacket.Status.UPDATE_ITEM_STATE) {
+                final GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
                 if (player == null) return;
 
                 player.packetStateData.setSlowedByUsingItem(false);
                 player.packetStateData.slowedByUsingItemTransaction = player.lastTransactionReceived.get();
 
-                if (PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_13)) {
-                    ItemStack hand = player.packetStateData.eatingHand == InteractionHand.OFF_HAND ? player.getInventory().getOffHand() : player.getInventory().getHeldItem();
+                ModifiableItemStack hand = player.packetStateData.eatingHand == Player.Hand.OFF ? player.getInventory().getOffHand() : player.getInventory().getHeldItem();
 
-                    if (hand.getType() == ItemTypes.TRIDENT
-                            && hand.getEnchantmentLevel(EnchantmentTypes.RIPTIDE, PacketEvents.getAPI().getServerManager().getVersion().toClientVersion()) > 0) {
-                        player.packetStateData.tryingToRiptide = true;
-                    }
+                if (hand.getType() == Material.TRIDENT && EnchantmentUtils.getEnchantmentLevel(hand.getItemStack(), Enchantment.RIPTIDE) > 0) {
+                    player.packetStateData.tryingToRiptide = true;
                 }
             }
         }
 
-        if (WrapperPlayClientPlayerFlying.isFlying(event.getPacketType())) {
-            final GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+        if (WrapperPlayClientPlayerFlying.isFlying(event.getPacket())) {
+            final GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
 
             if (!player.packetStateData.lastPacketWasTeleport && !player.packetStateData.lastPacketWasOnePointSeventeenDuplicate) {
-                if (player.packetStateData.isSlowedByUsingItem() && player.packetStateData.eatingHand != InteractionHand.OFF_HAND && player.packetStateData.getSlowedByUsingItemSlot() != player.packetStateData.lastSlotSelected) {
+                if (player.packetStateData.isSlowedByUsingItem() && player.packetStateData.eatingHand != Player.Hand.OFF && player.packetStateData.getSlowedByUsingItemSlot() != player.packetStateData.lastSlotSelected) {
                     player.packetStateData.setSlowedByUsingItem(false);
                     player.checkManager.getPostPredictionCheck(NoSlowA.class).didSlotChangeLastTick = true;
                 }
             }
         }
 
-        if (event.getPacketType() == PacketType.Play.Client.HELD_ITEM_CHANGE) {
-            final int slot = new WrapperPlayClientHeldItemChange(event).getSlot();
+        if (event.getPacket() instanceof ClientHeldItemChangePacket packet) {
+            final int slot = packet.slot();
 
             // Stop people from spamming the server with out of bounds exceptions
             if (slot > 8 || slot < 0) return;
 
-            final GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+            final GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
 
             // Prevent issues if the player switches slots, while lagging, standing still, and is placing blocks
@@ -196,28 +200,28 @@ public class PacketPlayerDigging extends PacketListenerAbstract {
 
             if (player.packetStateData.lastSlotSelected != slot) {
                 // just assume they tick after this
-                if (!player.isTickingReliablyFor(3) && player.skippedTickInActualMovement && player.packetStateData.eatingHand != InteractionHand.OFF_HAND) {
+                if (!player.isTickingReliablyFor(3) && player.skippedTickInActualMovement && player.packetStateData.eatingHand != Player.Hand.OFF) {
                     player.packetStateData.setSlowedByUsingItem(false);
                 }
             }
             player.packetStateData.lastSlotSelected = slot;
         }
 
-        if (event.getPacketType() == PacketType.Play.Client.USE_ITEM || (event.getPacketType() == PacketType.Play.Client.PLAYER_BLOCK_PLACEMENT && new WrapperPlayClientPlayerBlockPlacement(event).getFace() == BlockFace.OTHER)) {
-            final GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+        // todo minestom event.getPacket() instanceof ClientPlayerBlockPlacementPacket placement && placement.blockFace() == BlockFace.OTHER)
+        if (event.getPacket() instanceof ClientUseItemPacket || (event.getPacket() instanceof ClientPlayerBlockPlacementPacket placement)) {
+            final GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
 
-            final InteractionHand hand = event.getPacketType() == PacketType.Play.Client.USE_ITEM
-                    ? new WrapperPlayClientUseItem(event).getHand()
-                    : InteractionHand.MAIN_HAND;
+            final Player.Hand hand = event.getPacket() instanceof ClientUseItemPacket packet
+                    ? packet.hand()
+                    : Player.Hand.MAIN;
 
-            if (PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_8)
-                    && player.gamemode == GameMode.SPECTATOR)
+            if (player.gamemode == GameMode.SPECTATOR)
                 return;
 
             player.packetStateData.slowedByUsingItemTransaction = player.lastTransactionReceived.get();
 
-            final ItemStack item = hand == InteractionHand.MAIN_HAND ?
+            final ModifiableItemStack item = hand == Player.Hand.MAIN ?
                     player.getInventory().getHeldItem() : player.getInventory().getOffHand();
 
             final boolean wasSlow = player.packetStateData.isSlowedByUsingItem();

@@ -1,19 +1,18 @@
 package ac.grim.grimac.utils.collisions.blocks.connecting;
 
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
 import ac.grim.grimac.utils.collisions.CollisionData;
-import ac.grim.grimac.utils.collisions.datatypes.*;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.manager.server.ServerVersion;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.world.BlockFace;
-import com.github.retrooper.packetevents.protocol.world.states.WrappedBlockState;
-import com.github.retrooper.packetevents.protocol.world.states.defaulttags.BlockTags;
-import com.github.retrooper.packetevents.protocol.world.states.enums.East;
-import com.github.retrooper.packetevents.protocol.world.states.enums.North;
-import com.github.retrooper.packetevents.protocol.world.states.enums.South;
-import com.github.retrooper.packetevents.protocol.world.states.enums.West;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateType;
+import ac.grim.grimac.utils.collisions.datatypes.CollisionBox;
+import ac.grim.grimac.utils.collisions.datatypes.CollisionFactory;
+import ac.grim.grimac.utils.collisions.datatypes.ComplexCollisionBox;
+import ac.grim.grimac.utils.collisions.datatypes.HexCollisionBox;
+import ac.grim.grimac.utils.collisions.datatypes.SimpleCollisionBox;
+import ac.grim.grimac.utils.minestom.BlockTags;
+import ac.grim.grimac.utils.minestom.MinestomWrappedBlockState;
+import ac.grim.grimac.utils.minestom.enums.*;
+import net.minestom.server.instance.block.Block;
+import net.minestom.server.instance.block.BlockFace;
 
 public class DynamicWall extends DynamicConnecting implements CollisionFactory {
     public static final CollisionBox[] BOXES = makeShapes(4.0F, 3.0F, 16.0F, 0.0F, 16.0F, false);
@@ -21,31 +20,23 @@ public class DynamicWall extends DynamicConnecting implements CollisionFactory {
     // https://bugs.mojang.com/browse/MC-94016
     private static final CollisionBox[] COLLISION_BOXES = makeShapes(4.0F, 3.0F, 24.0F, 0.0F, 24.0F, false);
 
-    public CollisionBox fetchRegularBox(GrimPlayer player, WrappedBlockState state, ClientVersion version, int x, int y, int z) {
+    public CollisionBox fetchRegularBox(GrimPlayer player, MinestomWrappedBlockState state, ClientVersion version, int x, int y, int z) {
         int north, south, west, east, up;
         north = south = west = east = up = 0;
 
-        if (PacketEvents.getAPI().getServerManager().getVersion().isNewerThan(ServerVersion.V_1_12_2)) {
-            boolean sixteen = PacketEvents.getAPI().getServerManager().getVersion().isNewerThan(ServerVersion.V_1_16);
+        boolean sixteen = true;
 
-            if (state.getNorth() != North.NONE)
-                north += state.getNorth() == North.LOW || sixteen ? 1 : 2;
-            if (state.getEast() != East.NONE)
-                east += state.getEast() == East.LOW || sixteen ? 1 : 2;
-            if (state.getSouth() != South.NONE)
-                south += state.getSouth() == South.LOW || sixteen ? 1 : 2;
-            if (state.getWest() != West.NONE)
-                west += state.getWest() == West.LOW || sixteen ? 1 : 2;
+        if (state.getNorth() != North.NONE)
+            north += state.getNorth() == North.LOW || sixteen ? 1 : 2;
+        if (state.getEast() != East.NONE)
+            east += state.getEast() == East.LOW || sixteen ? 1 : 2;
+        if (state.getSouth() != South.NONE)
+            south += state.getSouth() == South.LOW || sixteen ? 1 : 2;
+        if (state.getWest() != West.NONE)
+            west += state.getWest() == West.LOW || sixteen ? 1 : 2;
 
-            if (state.isUp())
-                up = 1;
-        } else {
-            north = connectsTo(player, version, x, y, z, BlockFace.NORTH) ? 1 : 0;
-            south = connectsTo(player, version, x, y, z, BlockFace.SOUTH) ? 1 : 0;
-            west = connectsTo(player, version, x, y, z, BlockFace.WEST) ? 1 : 0;
-            east = connectsTo(player, version, x, y, z, BlockFace.EAST) ? 1 : 0;
+        if (state.isUp())
             up = 1;
-        }
 
         // On 1.13+ clients the bounding box is much more complicated
         if (version.isNewerThanOrEquals(ClientVersion.V_1_13)) {
@@ -113,15 +104,14 @@ public class DynamicWall extends DynamicConnecting implements CollisionFactory {
     }
 
     @Override
-    public CollisionBox fetch(GrimPlayer player, ClientVersion version, WrappedBlockState block, int x, int y, int z) {
+    public CollisionBox fetch(GrimPlayer player, ClientVersion version, MinestomWrappedBlockState block, int x, int y, int z) {
         boolean north;
         boolean south;
         boolean west;
         boolean east;
         boolean up;
 
-        if (PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_13)
-                && version.isNewerThan(ClientVersion.V_1_12_2)) {
+        if (version.isNewerThan(ClientVersion.V_1_12_2)) {
             east = block.getEast() != East.NONE;
             north = block.getNorth() != North.NONE;
             south = block.getSouth() != South.NONE;
@@ -181,7 +171,7 @@ public class DynamicWall extends DynamicConnecting implements CollisionFactory {
     }
 
     @Override
-    public boolean checkCanConnect(GrimPlayer player, WrappedBlockState state, StateType one, StateType two, BlockFace direction) {
+    public boolean checkCanConnect(GrimPlayer player, MinestomWrappedBlockState state, Block one, Block two, BlockFace direction) {
         return BlockTags.WALLS.contains(one) || CollisionData.getData(one).getMovementCollisionBox(player, player.getClientVersion(), state, 0, 0, 0).isSideFullBlock(direction);
     }
 }

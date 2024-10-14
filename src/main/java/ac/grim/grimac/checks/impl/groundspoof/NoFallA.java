@@ -5,12 +5,12 @@ import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.predictionengine.GhostBlockDetector;
+import ac.grim.grimac.utils.WrapperPlayClientPlayerFlying;
 import ac.grim.grimac.utils.collisions.datatypes.SimpleCollisionBox;
 import ac.grim.grimac.utils.nmsutil.Collisions;
 import ac.grim.grimac.utils.nmsutil.GetBoundingBox;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.play.ClientPlayerRotationPacket;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,8 +27,10 @@ public class NoFallA extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
-        if (event.getPacketType() == PacketType.Play.Client.PLAYER_FLYING || event.getPacketType() == PacketType.Play.Client.PLAYER_ROTATION) {
+    public void onPacketReceive(PlayerPacketEvent event) {
+        // todo minestom
+        // if (event.getPacketType() == PacketType.Play.Client.PLAYER_FLYING || event.getPacketType() == PacketType.Play.Client.PLAYER_ROTATION) {
+        if (event.getPacket() instanceof ClientPlayerRotationPacket) {
             // The player hasn't spawned yet
             if (player.getSetbackTeleportUtil().insideUnloadedChunk()) return;
             // The player has already been flagged, and
@@ -43,12 +45,14 @@ public class NoFallA extends Check implements PacketCheck {
                 if (!isNearGround(wrapper.isOnGround())) { // If player isn't near ground
                     // 1.8 boats have a mind on their own... only flag if they're not near a boat or are on 1.9+
                     if (!GhostBlockDetector.isGhostBlock(player) && flagWithSetback()) alert("");
-                    if (shouldModifyPackets()) wrapper.setOnGround(false);
+
+                    if (shouldModifyPackets()) player.bukkitPlayer.refreshOnGround(true);
+                    //if (shouldModifyPackets()) wrapper.setOnGround(false);
                 }
             }
         }
 
-        if (WrapperPlayClientPlayerFlying.isFlying(event.getPacketType())) {
+        if (WrapperPlayClientPlayerFlying.isFlying(event.getPacket())) {
             WrapperPlayClientPlayerFlying wrapper = new WrapperPlayClientPlayerFlying(event);
             // The prediction based NoFall check (that runs before us without the packet)
             // has asked us to flip the player's onGround status
@@ -59,10 +63,12 @@ public class NoFallA extends Check implements PacketCheck {
             // Also flip teleports because I don't trust vanilla's handling of teleports and ground
             if (flipPlayerGroundStatus) {
                 flipPlayerGroundStatus = false;
-                if (shouldModifyPackets()) wrapper.setOnGround(!wrapper.isOnGround());
+                if (shouldModifyPackets()) player.bukkitPlayer.refreshOnGround(!wrapper.isOnGround());
+                //if (shouldModifyPackets()) wrapper.setOnGround(!wrapper.isOnGround());
             }
             if (player.packetStateData.lastPacketWasTeleport) {
-                if (shouldModifyPackets()) wrapper.setOnGround(false);
+                if (shouldModifyPackets()) player.bukkitPlayer.refreshOnGround(false);
+                //if (shouldModifyPackets()) wrapper.setOnGround(false);
             }
         }
     }

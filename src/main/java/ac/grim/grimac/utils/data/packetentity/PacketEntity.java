@@ -16,27 +16,26 @@
 package ac.grim.grimac.utils.data.packetentity;
 
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
 import ac.grim.grimac.utils.collisions.datatypes.SimpleCollisionBox;
 import ac.grim.grimac.utils.data.ReachInterpolationData;
 import ac.grim.grimac.utils.data.TrackedPosition;
 import ac.grim.grimac.utils.data.attribute.ValuedAttribute;
 import ac.grim.grimac.utils.nmsutil.GetBoundingBox;
-import com.github.retrooper.packetevents.protocol.attribute.Attribute;
-import com.github.retrooper.packetevents.protocol.attribute.Attributes;
-import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.potion.PotionType;
-import com.github.retrooper.packetevents.util.Vector3d;
+import ac.grim.grimac.utils.vector.Vector3d;
 import lombok.Getter;
+import net.minestom.server.entity.Entity;
+import net.minestom.server.entity.attribute.Attribute;
+import net.minestom.server.potion.PotionEffect;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.OptionalInt;
-import java.util.UUID;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.UUID;
 
 // You may not copy this check unless your anticheat is licensed under GPL
 public class PacketEntity extends TypedPacketEntity {
@@ -54,17 +53,17 @@ public class PacketEntity extends TypedPacketEntity {
     private ReachInterpolationData oldPacketLocation;
     private ReachInterpolationData newPacketLocation;
 
-    private Map<PotionType, Integer> potionsMap = null;
+    private Map<PotionEffect, Integer> potionsMap = null;
     protected final Map<Attribute, ValuedAttribute> attributeMap = new IdentityHashMap<>();
 
-    public PacketEntity(GrimPlayer player, EntityType type) {
+    public PacketEntity(GrimPlayer player, Entity type) {
         super(type);
         this.uuid = null;
         initAttributes(player);
         this.trackedServerPosition = new TrackedPosition();
     }
 
-    public PacketEntity(GrimPlayer player, UUID uuid, EntityType type, double x, double y, double z) {
+    public PacketEntity(GrimPlayer player, UUID uuid, Entity type, double x, double y, double z) {
         super(type);
         this.uuid = uuid;
         initAttributes(player);
@@ -85,11 +84,11 @@ public class PacketEntity extends TypedPacketEntity {
     }
 
     protected void initAttributes(GrimPlayer player) {
-        trackAttribute(ValuedAttribute.ranged(Attributes.GENERIC_SCALE, 1.0, 0.0625, 16)
+        trackAttribute(ValuedAttribute.ranged(Attribute.GENERIC_SCALE, 1.0, 0.0625, 16)
                 .requiredVersion(player, ClientVersion.V_1_20_5));
-        trackAttribute(ValuedAttribute.ranged(Attributes.GENERIC_STEP_HEIGHT, 0.6f, 0, 10)
+        trackAttribute(ValuedAttribute.ranged(Attribute.GENERIC_STEP_HEIGHT, 0.6f, 0, 10)
                 .requiredVersion(player, ClientVersion.V_1_20_5));
-        trackAttribute(ValuedAttribute.ranged(Attributes.GENERIC_GRAVITY, 0.08, -1, 1)
+        trackAttribute(ValuedAttribute.ranged(Attribute.GENERIC_GRAVITY, 0.08, -1, 1)
                 .requiredVersion(player, ClientVersion.V_1_20_5));
     }
 
@@ -101,7 +100,7 @@ public class PacketEntity extends TypedPacketEntity {
     public void setAttribute(Attribute attribute, double value) {
         ValuedAttribute property = attributeMap.get(attribute);
         if (property == null) {
-            throw new IllegalArgumentException("Cannot set attribute " + attribute.getName() + " for entity " + getType().getName().toString() + "!");
+            throw new IllegalArgumentException("Cannot set attribute " + attribute.name() + " for entity " + getType().name() + "!");
         }
         property.override(value);
     }
@@ -109,7 +108,7 @@ public class PacketEntity extends TypedPacketEntity {
     public double getAttributeValue(Attribute attribute) {
         final ValuedAttribute property = attributeMap.get(attribute);
         if (property == null) {
-            throw new IllegalArgumentException("Cannot get attribute " + attribute.getName() + " for entity " + getType().getName().toString() + "!");
+            throw new IllegalArgumentException("Cannot get attribute " + attribute.name() + " for entity " + getType().name() + "!");
         }
         return property.get();
     }
@@ -201,23 +200,23 @@ public class PacketEntity extends TypedPacketEntity {
         return riding;
     }
 
-    public OptionalInt getPotionEffectLevel(PotionType effect) {
+    public OptionalInt getPotionEffectLevel(PotionEffect effect) {
         final Integer amplifier = potionsMap == null ? null : potionsMap.get(effect);
         return amplifier == null ? OptionalInt.empty() : OptionalInt.of(amplifier);
     }
 
-    public boolean hasPotionEffect(PotionType effect) {
+    public boolean hasPotionEffect(PotionEffect effect) {
         return potionsMap != null && potionsMap.containsKey(effect);
     }
 
-    public void addPotionEffect(PotionType effect, int amplifier) {
+    public void addPotionEffect(PotionEffect effect, int amplifier) {
         if (potionsMap == null) {
             potionsMap = new HashMap<>();
         }
         potionsMap.put(effect, amplifier);
     }
 
-    public void removePotionEffect(PotionType effect) {
+    public void removePotionEffect(PotionEffect effect) {
         if (potionsMap == null) return;
         potionsMap.remove(effect);
     }

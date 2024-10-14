@@ -1,20 +1,17 @@
 package ac.grim.grimac.utils.collisions.blocks.connecting;
 
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
 import ac.grim.grimac.utils.collisions.datatypes.CollisionBox;
 import ac.grim.grimac.utils.collisions.datatypes.ComplexCollisionBox;
 import ac.grim.grimac.utils.collisions.datatypes.HexCollisionBox;
 import ac.grim.grimac.utils.collisions.datatypes.NoCollisionBox;
 import ac.grim.grimac.utils.collisions.datatypes.SimpleCollisionBox;
+import ac.grim.grimac.utils.minestom.BlockTags;
+import ac.grim.grimac.utils.minestom.MinestomWrappedBlockState;
 import ac.grim.grimac.utils.nmsutil.Materials;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.manager.server.ServerVersion;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.world.BlockFace;
-import com.github.retrooper.packetevents.protocol.world.states.WrappedBlockState;
-import com.github.retrooper.packetevents.protocol.world.states.defaulttags.BlockTags;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateType;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateTypes;
+import net.minestom.server.instance.block.Block;
+import net.minestom.server.instance.block.BlockFace;
 
 public class DynamicConnecting {
 
@@ -43,22 +40,22 @@ public class DynamicConnecting {
         return avoxelshape;
     }
 
-    public boolean connectsTo(GrimPlayer player, ClientVersion v, int currX, int currY, int currZ, BlockFace direction) {
-        WrappedBlockState targetBlock = player.compensatedWorld.getWrappedBlockStateAt(currX + direction.getModX(), currY + direction.getModY(), currZ + direction.getModZ());
-        WrappedBlockState currBlock = player.compensatedWorld.getWrappedBlockStateAt(currX, currY, currZ);
-        StateType target = targetBlock.getType();
-        StateType fence = currBlock.getType();
+    public boolean connectsTo(GrimPlayer player, ClientVersion v, int currX, int currY, int currZ, net.minestom.server.instance.block.BlockFace direction) {
+        MinestomWrappedBlockState targetBlock = player.compensatedWorld.getWrappedBlockStateAt(currX + direction.toDirection().normalX(), currY + direction.toDirection().normalY(), currZ + direction.toDirection().normalZ());
+        MinestomWrappedBlockState currBlock = player.compensatedWorld.getWrappedBlockStateAt(currX, currY, currZ);
+        Block target = targetBlock.getType();
+        Block fence = currBlock.getType();
 
         if (!BlockTags.FENCES.contains(target) && isBlacklisted(target, fence, v))
             return false;
 
         // 1.12+ clients can connect to TnT while previous versions can't
-        if (target == StateTypes.TNT)
+        if (target == Block.TNT)
             return v.isNewerThanOrEquals(ClientVersion.V_1_12);
 
         // 1.9-1.11 clients don't have BARRIER exemption
         // https://bugs.mojang.com/browse/MC-9565
-        if (target == StateTypes.BARRIER)
+        if (target == Block.BARRIER)
             return player.getClientVersion().isOlderThanOrEquals(ClientVersion.V_1_7_10) ||
                     player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_9) &&
                             player.getClientVersion().isOlderThanOrEquals(ClientVersion.V_1_11_1);
@@ -66,7 +63,8 @@ public class DynamicConnecting {
         if (BlockTags.STAIRS.contains(target)) {
             // 1.12 clients generate their own data, 1.13 clients use the server's data
             // 1.11- versions don't allow fences to connect to the back sides of stairs
-            if (v.isOlderThan(ClientVersion.V_1_12) || (PacketEvents.getAPI().getServerManager().getVersion().isOlderThanOrEquals(ServerVersion.V_1_11) && v.isNewerThanOrEquals(ClientVersion.V_1_13)))
+            // (PacketEvents.getAPI().getServerManager().getVersion().isOlderThanOrEquals(ServerVersion.V_1_11) && v.isNewerThanOrEquals(ClientVersion.V_1_13)
+            if (v.isOlderThan(ClientVersion.V_1_12))
                 return false;
             return targetBlock.getFacing().getOppositeFace() == direction;
         } else if (canConnectToGate(fence) && BlockTags.FENCE_GATES.contains(target)) {
@@ -85,14 +83,14 @@ public class DynamicConnecting {
     }
 
     /** Some blocks override isFullBlock whilst actually having a full state */
-    boolean isBlacklisted(StateType m, StateType fence, ClientVersion clientVersion) {
+    boolean isBlacklisted(Block m, Block fence, ClientVersion clientVersion) {
         if (BlockTags.LEAVES.contains(m)) return clientVersion.isNewerThan(ClientVersion.V_1_8) || !Materials.isGlassPane(fence);
         if (BlockTags.SHULKER_BOXES.contains(m)) return true;
         if (BlockTags.TRAPDOORS.contains(m)) return true;
 
-        return m == StateTypes.ENCHANTING_TABLE || m == StateTypes.FARMLAND || m == StateTypes.CARVED_PUMPKIN || m == StateTypes.JACK_O_LANTERN || m == StateTypes.PUMPKIN || m == StateTypes.MELON ||
-                m == StateTypes.BEACON || BlockTags.CAULDRONS.contains(m) || m == StateTypes.GLOWSTONE || m == StateTypes.SEA_LANTERN || m == StateTypes.ICE
-                || m == StateTypes.PISTON || m == StateTypes.STICKY_PISTON || m == StateTypes.PISTON_HEAD || (!canConnectToGlassBlock()
+        return m == Block.ENCHANTING_TABLE || m == Block.FARMLAND || m == Block.CARVED_PUMPKIN || m == Block.JACK_O_LANTERN || m == Block.PUMPKIN || m == Block.MELON ||
+                m == Block.BEACON || BlockTags.CAULDRONS.contains(m) || m == Block.GLOWSTONE || m == Block.SEA_LANTERN || m == Block.ICE
+                || m == Block.PISTON || m == Block.STICKY_PISTON || m == Block.PISTON_HEAD || (!canConnectToGlassBlock()
                 && BlockTags.GLASS_BLOCKS.contains(m));
     }
 
@@ -118,7 +116,7 @@ public class DynamicConnecting {
         return i;
     }
 
-    public boolean checkCanConnect(GrimPlayer player, WrappedBlockState state, StateType one, StateType two, BlockFace direction) {
+    public boolean checkCanConnect(GrimPlayer player, MinestomWrappedBlockState state, Block one, Block two, BlockFace direction) {
         return false;
     }
 
@@ -126,7 +124,7 @@ public class DynamicConnecting {
         return false;
     }
 
-    public boolean canConnectToGate(StateType fence) {
+    public boolean canConnectToGate(Block fence) {
         return !Materials.isGlassPane(fence);
     }
 }

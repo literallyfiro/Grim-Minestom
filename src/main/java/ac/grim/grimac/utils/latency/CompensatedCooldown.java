@@ -5,7 +5,7 @@ import ac.grim.grimac.checks.type.PositionCheck;
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.anticheat.update.PositionUpdate;
 import ac.grim.grimac.utils.data.CooldownData;
-import com.github.retrooper.packetevents.protocol.item.type.ItemType;
+import net.minestom.server.item.Material;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 // note that interactions still get sent to the server with the item but the client does not play the animation
 // nor attempt to predict results (i.e block placing).
 public class CompensatedCooldown extends Check implements PositionCheck {
-    private final ConcurrentHashMap<ItemType, CooldownData> itemCooldownMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Material, CooldownData> itemCooldownMap = new ConcurrentHashMap<>();
 
     public CompensatedCooldown(GrimPlayer playerData) {
         super(playerData);
@@ -25,8 +25,8 @@ public class CompensatedCooldown extends Check implements PositionCheck {
 
     @Override
     public void onPositionUpdate(final PositionUpdate positionUpdate) {
-        for (Iterator<Map.Entry<ItemType, CooldownData>> it = itemCooldownMap.entrySet().iterator(); it.hasNext(); ) {
-            Map.Entry<ItemType, CooldownData> entry = it.next();
+        for (Iterator<Map.Entry<Material, CooldownData>> it = itemCooldownMap.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<Material, CooldownData> entry = it.next();
 
             // Only tick if we have known that this packet has arrived
             if (entry.getValue().getTransaction() < player.lastTransactionReceived.get()) {
@@ -39,12 +39,12 @@ public class CompensatedCooldown extends Check implements PositionCheck {
     }
 
     // all the same to us... having a cooldown or not having one
-    public boolean hasMaterial(ItemType item) {
+    public boolean hasMaterial(Material item) {
         return itemCooldownMap.containsKey(item);
     }
 
     // Yes, new cooldowns overwrite old ones, we don't have to check for an existing cooldown
-    public void addCooldown(ItemType item, int cooldown, int transaction) {
+    public void addCooldown(Material item, int cooldown, int transaction) {
         if (cooldown == 0) {
             removeCooldown(item);
             return;
@@ -53,7 +53,7 @@ public class CompensatedCooldown extends Check implements PositionCheck {
         itemCooldownMap.put(item, new CooldownData(cooldown, transaction));
     }
 
-    public void removeCooldown(ItemType item) {
+    public void removeCooldown(Material item) {
         itemCooldownMap.remove(item);
     }
 }

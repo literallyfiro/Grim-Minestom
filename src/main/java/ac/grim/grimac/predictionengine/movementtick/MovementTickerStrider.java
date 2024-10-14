@@ -1,25 +1,30 @@
 package ac.grim.grimac.predictionengine.movementtick;
 
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
 import ac.grim.grimac.utils.data.attribute.ValuedAttribute;
 import ac.grim.grimac.utils.data.packetentity.PacketEntityStrider;
+import ac.grim.grimac.utils.minestom.BlockTags;
 import ac.grim.grimac.utils.nmsutil.BlockProperties;
-import com.github.retrooper.packetevents.protocol.attribute.Attributes;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.world.states.defaulttags.BlockTags;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateType;
-import com.github.retrooper.packetevents.resources.ResourceLocation;
-import com.github.retrooper.packetevents.util.Vector3d;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUpdateAttributes;
-import org.bukkit.util.Vector;
+import ac.grim.grimac.utils.vector.MutableVector;
+import ac.grim.grimac.utils.vector.Vector3d;
+import net.kyori.adventure.key.Key;
+import net.minestom.server.entity.attribute.Attribute;
+import net.minestom.server.entity.attribute.AttributeModifier;
+import net.minestom.server.entity.attribute.AttributeOperation;
+import net.minestom.server.instance.block.Block;
+import net.minestom.server.network.packet.server.play.EntityAttributesPacket;
+import net.minestom.server.utils.NamespaceID;
 
 import java.util.ArrayList;
 
 public class MovementTickerStrider extends MovementTickerRideable {
 
+    private static final NamespaceID SUFFOCATING = NamespaceID.from(Key.MINECRAFT_NAMESPACE, "minecraft:suffocating");
+
     public MovementTickerStrider(GrimPlayer player) {
         super(player);
-        movementInput = new Vector(0, 0, 1);
+        movementInput = new MutableVector(0, 0, 1);
     }
 
     public static void floatStrider(GrimPlayer player) {
@@ -27,7 +32,7 @@ public class MovementTickerStrider extends MovementTickerRideable {
             if (isAbove(player) && player.compensatedWorld.getLavaFluidLevelAt((int) Math.floor(player.x), (int) Math.floor(player.y + 1), (int) Math.floor(player.z)) == 0) {
                 player.onGround = true;
             } else {
-                player.clientVelocity.multiply(0.5).add(new Vector(0, 0.05, 0));
+                player.clientVelocity.multiply(0.5).add(new MutableVector(0, 0.05, 0));
             }
         }
     }
@@ -40,8 +45,8 @@ public class MovementTickerStrider extends MovementTickerRideable {
     public void livingEntityAIStep() {
         super.livingEntityAIStep();
 
-        StateType posMaterial = player.compensatedWorld.getStateTypeAt(player.x, player.y, player.z);
-        StateType belowMaterial = BlockProperties.getOnPos(player, player.mainSupportingBlockData, new Vector3d(player.x, player.y, player.z));
+        Block posMaterial = player.compensatedWorld.getStateTypeAt(player.x, player.y, player.z);
+        Block belowMaterial = BlockProperties.getOnPos(player, player.mainSupportingBlockData, new Vector3d(player.x, player.y, player.z));
 
         final PacketEntityStrider strider = (PacketEntityStrider) player.compensatedEntities.getSelf().getRiding();
         strider.isShaking = !BlockTags.STRIDER_WARM_BLOCKS.contains(posMaterial) &&
@@ -49,8 +54,7 @@ public class MovementTickerStrider extends MovementTickerRideable {
                         !player.wasTouchingLava;
     }
 
-    private static final WrapperPlayServerUpdateAttributes.PropertyModifier SUFFOCATING_MODIFIER = new WrapperPlayServerUpdateAttributes.PropertyModifier(
-            ResourceLocation.minecraft("suffocating"), -0.34F, WrapperPlayServerUpdateAttributes.PropertyModifier.Operation.MULTIPLY_BASE);
+    private static final AttributeModifier SUFFOCATING_MODIFIER = new AttributeModifier(SUFFOCATING, -0.34F, AttributeOperation.MULTIPLY_BASE);
 
     @Override
     public float getSteeringSpeed() {
@@ -61,16 +65,16 @@ public class MovementTickerStrider extends MovementTickerRideable {
 
         // Client desyncs the attribute
         // Again I don't know when this was changed, or whether it always existed, so I will just put it behind 1.20+
-        final ValuedAttribute movementSpeedAttr = strider.getAttribute(Attributes.GENERIC_MOVEMENT_SPEED).get();
+        final ValuedAttribute movementSpeedAttr = strider.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED).get();
         float updatedMovementSpeed = (float) movementSpeedAttr.get();
         if (newSpeed) {
-            final WrapperPlayServerUpdateAttributes.Property lastProperty = movementSpeedAttr.property().orElse(null);
-            if (lastProperty != null && (!strider.isShaking || lastProperty.getModifiers().stream().noneMatch(mod -> mod.getName().getKey().equals("suffocating")))) {
-                WrapperPlayServerUpdateAttributes.Property newProperty = new WrapperPlayServerUpdateAttributes.Property(lastProperty.getAttribute(), lastProperty.getValue(), new ArrayList<>(lastProperty.getModifiers()));
+            final EntityAttributesPacket.Property lastProperty = movementSpeedAttr.property().orElse(null);
+            if (lastProperty != null && (!strider.isShaking || lastProperty.modifiers().stream().noneMatch(mod -> mod.id().key().equals(SUFFOCATING)))) {
+                EntityAttributesPacket.Property newProperty = new EntityAttributesPacket.Property(lastProperty.attribute(), lastProperty.value(), new ArrayList<>(lastProperty.modifiers()));
                 if (!strider.isShaking) {
-                    newProperty.getModifiers().removeIf(modifier -> modifier.getName().getKey().equals("suffocating"));
+                    newProperty.modifiers().removeIf(modifier -> modifier.id().key().equals(SUFFOCATING));
                 } else {
-                    newProperty.getModifiers().add(SUFFOCATING_MODIFIER);
+                    newProperty.modifiers().add(SUFFOCATING_MODIFIER);
                 }
                 movementSpeedAttr.with(newProperty);
                 updatedMovementSpeed = (float) movementSpeedAttr.get();

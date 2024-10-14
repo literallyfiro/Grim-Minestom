@@ -10,11 +10,10 @@ import ac.grim.grimac.events.packets.ProxyAlertMessenger;
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.anticheat.LogUtil;
 import ac.grim.grimac.utils.anticheat.MessageUtil;
-import io.github.retrooper.packetevents.util.folia.FoliaScheduler;
 import lombok.Getter;
 import lombok.Setter;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.entity.Player;
 
 import java.util.*;
 
@@ -139,9 +138,10 @@ public class PunishmentManager implements ConfigReloadable {
                         // Any other number means execute every X interval
                         boolean inInterval = command.getInterval() == 0 ? (command.executeCount == 0) : (violationCount % command.getInterval() == 0);
                         if (inInterval) {
-                            CommandExecuteEvent executeEvent = new CommandExecuteEvent(player, check, cmd);
-                            Bukkit.getPluginManager().callEvent(executeEvent);
-                            if (executeEvent.isCancelled()) continue;
+//                            CommandExecuteEvent executeEvent = new CommandExecuteEvent(player, check, cmd);
+                            // todo minestom fix this shit
+                            //MinecraftServer.getGlobalEventHandler().call(executeEvent);
+//                            if (executeEvent.isCancelled()) continue;
 
                             if (command.command.equals("[webhook]")) {
                                 String vl = group.violations.values().stream().filter((e) -> e == check).count() + "";
@@ -154,16 +154,13 @@ public class PunishmentManager implements ConfigReloadable {
                                 if (command.command.equals("[alert]")) {
                                     sentDebug = true;
                                     if (testMode) { // secret test mode
-                                        player.user.sendMessage(cmd);
+                                        player.bukkitPlayer.sendMessage(cmd);
                                         continue;
                                     }
                                     cmd = "grim sendalert " + cmd; // Not test mode, we can add the command prefix
                                 }
 
-                                String finalCmd = cmd;
-                                FoliaScheduler.getGlobalRegionScheduler().run(GrimAPI.INSTANCE.getPlugin(), (dummy) -> {
-                                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCmd);
-                                });
+                                MinecraftServer.getCommandManager().executeServerCommand(cmd);
                             }
                         }
 

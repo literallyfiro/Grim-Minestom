@@ -2,10 +2,11 @@ package ac.grim.grimac.utils.latency;
 
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.data.Pair;
-import com.github.retrooper.packetevents.netty.channel.ChannelHelper;
 
 import java.util.LinkedList;
 import java.util.ListIterator;
+
+import static ac.grim.grimac.GrimAPI.EXECUTOR_SERVICE;
 
 public class LatencyUtils {
     private final LinkedList<Pair<Integer, Runnable>> transactionMap = new LinkedList<>();
@@ -26,7 +27,9 @@ public class LatencyUtils {
     public void addRealTimeTask(int transaction, boolean async, Runnable runnable) {
         if (player.lastTransactionReceived.get() >= transaction) { // If the player already responded to this transaction
             if (async) {
-                ChannelHelper.runInEventLoop(player.user.getChannel(), runnable); // Run it sync to player channel
+                // todo ChannelHelper.runInEventLoop(player.user.getChannel(), runnable);
+                //                 ChannelHelper.runInEventLoop(player.user.getChannel(), runnable); // Run it sync to player channel
+                EXECUTOR_SERVICE.submit(runnable);
             } else {
                 runnable.run();
             }
@@ -55,7 +58,7 @@ public class LatencyUtils {
                     // Run the task
                     pair.getSecond().run();
                 } catch (Exception e) {
-                    System.out.println("An error has occurred when running transactions for player: " + player.user.getName());
+                    System.out.println("An error has occurred when running transactions for player: " + player.bukkitPlayer.getName());
                     e.printStackTrace();
                 }
                 // We ran a task, remove it from the list

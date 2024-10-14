@@ -1,14 +1,12 @@
 package ac.grim.grimac.utils.data.tags;
 
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.manager.server.ServerVersion;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.world.states.defaulttags.BlockTags;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateType;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateTypes;
-import com.github.retrooper.packetevents.resources.ResourceLocation;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTags;
+import ac.grim.grimac.utils.ClientVersion;
+import ac.grim.grimac.utils.minestom.BlockTags;
+import net.kyori.adventure.key.Key;
+import net.minestom.server.instance.block.Block;
+import net.minestom.server.network.packet.server.common.TagsPacket;
+import net.minestom.server.utils.NamespaceID;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,25 +17,22 @@ import java.util.function.Function;
  */
 public final class SyncedTags {
 
-    private static final ServerVersion VERSION = PacketEvents.getAPI().getServerManager().getVersion();
-
-    private static final ResourceLocation BLOCK = VERSION.isNewerThanOrEquals(ServerVersion.V_1_21) ? ResourceLocation.minecraft("block") : ResourceLocation.minecraft("blocks");
-
-    public static final ResourceLocation CLIMBABLE = ResourceLocation.minecraft("climbable");
+    private static final NamespaceID BLOCK = NamespaceID.from("minecraft:block");
+    public static final NamespaceID CLIMBABLE = NamespaceID.from("minecraft:climbable");
 
     private final GrimPlayer player;
-    private final Map<ResourceLocation, Map<ResourceLocation, SyncedTag<?>>> synced;
+    private final Map<NamespaceID, Map<NamespaceID, SyncedTag<?>>> synced;
 
     public SyncedTags(GrimPlayer player) {
         this.player = player;
         this.synced = new HashMap<>();
-        trackTags(BLOCK, id -> StateTypes.getById(VERSION.toClientVersion(), id),
-                SyncedTag.<StateType>builder(CLIMBABLE).defaults(BlockTags.CLIMBABLE.getStates()));
+        trackTags(BLOCK, Block::fromNamespaceId,
+                SyncedTag.<Block>builder(CLIMBABLE).defaults(BlockTags.CLIMBABLE.getStates()));
     }
 
     @SafeVarargs
-    private final <T> void trackTags(ResourceLocation location, Function<Integer, T> remapper, SyncedTag.Builder<T>... syncedTags) {
-        final Map<ResourceLocation, SyncedTag<?>> tags = new HashMap<>(syncedTags.length);
+    private <T> void trackTags(NamespaceID location, Function<NamespaceID, T> remapper, SyncedTag.Builder<T>... syncedTags) {
+        final Map<NamespaceID, SyncedTag<?>> tags = new HashMap<>(syncedTags.length);
         for (SyncedTag.Builder<T> syncedTag : syncedTags) {
             syncedTag.remapper(remapper);
             final SyncedTag<T> built = syncedTag.build();
@@ -46,20 +41,30 @@ public final class SyncedTags {
         synced.put(location, tags);
     }
 
-    public SyncedTag<StateType> block(ResourceLocation tag) {
-        final Map<ResourceLocation, SyncedTag<?>> blockTags = synced.get(BLOCK);
-        return (SyncedTag<StateType>) blockTags.get(tag);
+    public SyncedTag<Block> block(Key tag) {
+        final Map<NamespaceID, SyncedTag<?>> blockTags = synced.get(BLOCK);
+        return (SyncedTag<Block>) blockTags.get(tag);
     }
 
-    public void handleTagSync(WrapperPlayServerTags tags) {
+    public void handleTagSync(TagsPacket tags) {
         if (player.getClientVersion().isOlderThan(ClientVersion.V_1_13)) return;
-        tags.getTagMap().forEach((location, tagList) -> {
-            if (!synced.containsKey(location)) return;
-            final Map<ResourceLocation, SyncedTag<?>> syncedTags = synced.get(location);
-            tagList.forEach(tag -> {
-                if (!syncedTags.containsKey(tag.getKey())) return;
-                syncedTags.get(tag.getKey()).readTagValues(tag);
+        tags.tagsMap().forEach((basicType, tagsList) -> {
+            NamespaceID id = NamespaceID.from(basicType.getIdentifier());
+            if (!synced.containsKey(id)) return;
+            final Map<NamespaceID, SyncedTag<?>> syncedTags = synced.get(id);
+            tagsList.forEach(tag -> {
+                NamespaceID tagId = NamespaceID.from(tag.key());
+                if (!syncedTags.containsKey(tagId)) return;
+                syncedTags.get(tagId).readTagValues(tag);
             });
         });
+//        tags.getTagMap().forEach((location, tagList) -> {
+//            if (!synced.containsKey(location)) return;
+//            final Map<ResourceLocation, SyncedTag<?>> syncedTags = synced.get(location);
+//            tagList.forEach(tag -> {
+//                if (!syncedTags.containsKey(tag.getKey())) return;
+//                syncedTags.get(tag.getKey()).readTagValues(tag);
+//            });
+//        });
     }
 }

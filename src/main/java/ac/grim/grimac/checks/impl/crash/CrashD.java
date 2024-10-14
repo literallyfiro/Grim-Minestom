@@ -5,13 +5,10 @@ import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.inventory.inventory.MenuType;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.event.PacketSendEvent;
-import com.github.retrooper.packetevents.manager.server.ServerVersion;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientClickWindow;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerOpenWindow;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.event.player.PlayerPacketOutEvent;
+import net.minestom.server.network.packet.client.play.ClientClickWindowPacket;
+import net.minestom.server.network.packet.server.play.OpenWindowPacket;
 
 @CheckData(name = "CrashD", experimental = false)
 public class CrashD extends Check implements PacketCheck {
@@ -24,21 +21,19 @@ public class CrashD extends Check implements PacketCheck {
     private int lecternId = -1;
 
     @Override
-    public void onPacketSend(final PacketSendEvent event) {
-        if (event.getPacketType() == PacketType.Play.Server.OPEN_WINDOW && isSupportedVersion()) {
-            WrapperPlayServerOpenWindow window = new WrapperPlayServerOpenWindow(event);
-            this.type = MenuType.getMenuType(window.getType());
-            if (type == MenuType.LECTERN) lecternId = window.getContainerId();
+    public void onPacketSend(final PlayerPacketOutEvent event) {
+        if (event.getPacket() instanceof OpenWindowPacket window && isSupportedVersion()) {
+            this.type = MenuType.getMenuType(window.windowType());
+            if (type == MenuType.LECTERN) lecternId = window.windowId();
         }
     }
 
     @Override
-    public void onPacketReceive(final PacketReceiveEvent event) {
-        if (event.getPacketType() == PacketType.Play.Client.CLICK_WINDOW && isSupportedVersion()) {
-            WrapperPlayClientClickWindow click = new WrapperPlayClientClickWindow(event);
-            int clickType = click.getWindowClickType().ordinal();
-            int button = click.getButton();
-            int windowId = click.getWindowId();
+    public void onPacketReceive(final PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientClickWindowPacket click && isSupportedVersion()) {
+            int clickType = click.clickType().ordinal();
+            int button = click.button();
+            int windowId = click.windowId();
 
             if (type == MenuType.LECTERN && windowId > 0 && windowId == lecternId) {
                 if (flagAndAlert("clickType=" + clickType + " button=" + button)) {
@@ -50,7 +45,8 @@ public class CrashD extends Check implements PacketCheck {
     }
 
     private boolean isSupportedVersion() {
-        return PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_14);
+//        return PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_14);
+        return true;
     }
 
 }

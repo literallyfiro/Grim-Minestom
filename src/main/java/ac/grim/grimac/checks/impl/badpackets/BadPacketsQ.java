@@ -4,10 +4,8 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType.Play.Client;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientEntityAction;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientEntityAction.Action;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.play.ClientEntityActionPacket;
 
 @CheckData(name = "BadPacketsQ")
 public class BadPacketsQ extends Check implements PacketCheck {
@@ -16,12 +14,10 @@ public class BadPacketsQ extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
-        if (event.getPacketType() == Client.ENTITY_ACTION) {
-            WrapperPlayClientEntityAction wrapper = new WrapperPlayClientEntityAction(event);
-
-            if (wrapper.getJumpBoost() < 0 || wrapper.getJumpBoost() > 100 || wrapper.getEntityId() != player.entityID || (wrapper.getAction() != Action.START_JUMPING_WITH_HORSE && wrapper.getJumpBoost() != 0)) {
-                if (flagAndAlert("boost=" + wrapper.getJumpBoost() + ", action=" + wrapper.getAction() + ", entity=" + wrapper.getEntityId()) && shouldModifyPackets()) {
+    public void onPacketReceive(PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientEntityActionPacket wrapper) {
+            if (wrapper.horseJumpBoost() < 0 || wrapper.horseJumpBoost() > 100 || wrapper.playerId() != player.entityID || (wrapper.action() != ClientEntityActionPacket.Action.START_JUMP_HORSE && wrapper.horseJumpBoost() != 0)) {
+                if (flagAndAlert("boost=" + wrapper.horseJumpBoost() + ", action=" + wrapper.action() + ", entity=" + wrapper.playerId()) && shouldModifyPackets()) {
                     event.setCancelled(true);
                     player.onPacketCancel();
                 }

@@ -16,14 +16,12 @@
 package ac.grim.grimac.utils.data;
 
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
 import ac.grim.grimac.utils.collisions.datatypes.SimpleCollisionBox;
 import ac.grim.grimac.utils.data.packetentity.PacketEntity;
 import ac.grim.grimac.utils.nmsutil.GetBoundingBox;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.manager.server.ServerVersion;
-import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.util.Vector3d;
+import ac.grim.grimac.utils.vector.Vector3d;
+import net.minestom.server.entity.EntityType;
 
 // You may not copy the check unless you are licensed under GPL
 public class ReachInterpolationData {
@@ -38,11 +36,11 @@ public class ReachInterpolationData {
 
         this.startingLocation = startingLocation;
         final Vector3d pos = position.getPos();
-        this.targetLocation = GetBoundingBox.getPacketEntityBoundingBox(player, pos.x, pos.y, pos.z, entity);
+        this.targetLocation = GetBoundingBox.getPacketEntityBoundingBox(player, pos.getX(), pos.getY(), pos.getZ(), entity);
 
         // 1.9 -> 1.8 precision loss in packets
         // (ViaVersion is doing some stuff that makes this code difficult)
-        if (!isPointNine && PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_9)) {
+        if (!isPointNine) {
             targetLocation.expand(0.03125);
         }
 
@@ -50,7 +48,7 @@ public class ReachInterpolationData {
             interpolationSteps = 10;
         } else if (entity.isMinecart()) {
             interpolationSteps = 5;
-        } else if (entity.getType() == EntityTypes.SHULKER) {
+        } else if (entity.getType() == EntityType.SHULKER) {
             interpolationSteps = 1;
         } else if (entity.isLivingEntity()) {
             interpolationSteps = 3;

@@ -2,7 +2,7 @@ package ac.grim.grimac.utils.inventory.inventory;
 
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.inventory.Inventory;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientClickWindow;
+import net.minestom.server.network.packet.client.play.ClientClickWindowPacket;
 
 public class NotImplementedMenu extends AbstractContainerMenu {
     public NotImplementedMenu(GrimPlayer player, Inventory playerInventory) {
@@ -12,7 +12,7 @@ public class NotImplementedMenu extends AbstractContainerMenu {
     }
 
     @Override
-    public void doClick(int button, int slotID, WrapperPlayClientClickWindow.WindowClickType clickType) {
+    public void doClick(int button, int slotID, ClientClickWindowPacket.ClickType clickType) {
 
     }
 }

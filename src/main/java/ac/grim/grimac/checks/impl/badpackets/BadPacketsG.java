@@ -4,9 +4,8 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientEntityAction;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.play.ClientEntityActionPacket;
 
 @CheckData(name = "BadPacketsG")
 public class BadPacketsG extends Check implements PacketCheck {
@@ -18,13 +17,11 @@ public class BadPacketsG extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
+    public void onPacketReceive(PlayerPacketEvent event) {
         wasTeleport = player.packetStateData.lastPacketWasTeleport || wasTeleport;
 
-        if (event.getPacketType() == PacketType.Play.Client.ENTITY_ACTION) {
-            WrapperPlayClientEntityAction packet = new WrapperPlayClientEntityAction(event);
-
-            if (packet.getAction() == WrapperPlayClientEntityAction.Action.START_SNEAKING) {
+        if (event.getPacket() instanceof ClientEntityActionPacket packet) {
+            if (packet.action() == ClientEntityActionPacket.Action.START_SNEAKING) {
                 if (lastSneaking && !wasTeleport) {
                     if (flagAndAlert("state=true") && shouldModifyPackets()) {
                         event.setCancelled(true);
@@ -33,7 +30,7 @@ public class BadPacketsG extends Check implements PacketCheck {
                 } else {
                     lastSneaking = true;
                 }
-            } else if (packet.getAction() == WrapperPlayClientEntityAction.Action.STOP_SNEAKING) {
+            } else if (packet.action() == ClientEntityActionPacket.Action.STOP_SNEAKING) {
                 if (!lastSneaking && !wasTeleport) {
                     if (flagAndAlert("state=false") && shouldModifyPackets()) {
                         event.setCancelled(true);

@@ -2,54 +2,55 @@ package ac.grim.grimac.events.packets;
 
 import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.RelativeFlag;
 import ac.grim.grimac.utils.data.Pair;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.event.PacketListenerAbstract;
-import com.github.retrooper.packetevents.event.PacketListenerPriority;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.event.PacketSendEvent;
-import com.github.retrooper.packetevents.manager.server.ServerVersion;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.teleport.RelativeFlag;
-import com.github.retrooper.packetevents.util.Vector3d;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientTeleportConfirm;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerPositionAndLook;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerVehicleMove;
-import org.bukkit.Location;
+import ac.grim.grimac.utils.minestom.EventPriority;
+import ac.grim.grimac.utils.vector.Vector3d;
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.coordinate.Pos;
+import net.minestom.server.event.Event;
+import net.minestom.server.event.EventNode;
+import net.minestom.server.event.player.PlayerPacketOutEvent;
+import net.minestom.server.network.packet.server.play.PlayerPositionAndLookPacket;
+import net.minestom.server.network.packet.server.play.VehicleMovePacket;
 
-public class PacketServerTeleport extends PacketListenerAbstract {
+public class PacketServerTeleport {
 
-    public PacketServerTeleport() {
-        super(PacketListenerPriority.LOW);
+//    public PacketServerTeleport() {
+//        super(PacketListenerPriority.LOW);
+//    }
+
+    public PacketServerTeleport(EventNode<Event> globalNode) {
+        EventNode<Event> node = EventNode.all("packet-server-teleport");
+        node.setPriority(EventPriority.LOW.ordinal());
+
+        node.addListener(PlayerPacketOutEvent.class, this::onPacketSend);
+
+        globalNode.addChild(node);
     }
 
-    @Override
-    public void onPacketSend(PacketSendEvent event) {
-        if (event.getPacketType() == PacketType.Play.Server.PLAYER_POSITION_AND_LOOK) {
-           WrapperPlayServerPlayerPositionAndLook teleport = new WrapperPlayServerPlayerPositionAndLook(event);
+    public void onPacketSend(PlayerPacketOutEvent event) {
+        if (event.getPacket() instanceof PlayerPositionAndLookPacket teleport) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
 
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
-
-            Vector3d pos = new Vector3d(teleport.getX(), teleport.getY(), teleport.getZ());
+            Vector3d pos = new Vector3d(teleport.position().x(), teleport.position().y(), teleport.position().z());
 
             if (player == null) return;
 
             // This is the first packet sent to the client which we need to track
             if (player.getSetbackTeleportUtil().getRequiredSetBack() == null) {
                 // Player teleport event gets called AFTER player join event
-                player.x = teleport.getX();
-                player.y = teleport.getY();
-                player.z = teleport.getZ();
-                player.xRot = teleport.getYaw();
-                player.yRot = teleport.getPitch();
+                player.x = teleport.position().x();
+                player.y = teleport.position().y();
+                player.z = teleport.position().z();
+                player.xRot = teleport.position().yaw();
+                player.yRot = teleport.position().pitch();
 
-                player.lastX = teleport.getX();
-                player.lastY = teleport.getY();
-                player.lastZ = teleport.getZ();
-                player.lastXRot = teleport.getYaw();
-                player.lastYRot = teleport.getPitch();
-
+                player.lastX = teleport.position().x();
+                player.lastY = teleport.position().y();
+                player.lastZ = teleport.position().z();
+                player.lastXRot = teleport.position().yaw();
+                player.lastYRot = teleport.position().pitch();
                 player.pollData();
             }
 
@@ -59,55 +60,54 @@ public class PacketServerTeleport extends PacketListenerAbstract {
             // The added complexity isn't worth a feature that I have never seen used
             //
             // If you do actually need this make an issue on GitHub with an explanation for why
-            if (player.getClientVersion().isOlderThanOrEquals(ClientVersion.V_1_8)) {
-                if (teleport.isRelativeFlag(RelativeFlag.X)) {
-                    pos = pos.add(new Vector3d(player.x, 0, 0));
-                }
+            // todo minestom here
+//            if (player.getClientVersion().isOlderThanOrEquals(ClientVersion.V_1_8)) {
+//                if (RelativeFlag.X.isSet(teleport.flags())) {
+//                    pos = pos.add(new Vector3d(player.x, 0, 0));
+//                }
+//
+//                if (RelativeFlag.Y.isSet(teleport.flags())) {
+//                    pos = pos.add(new Vector3d(0, player.y, 0));
+//                }
+//
+//                if (RelativeFlag.Z.isSet(teleport.flags())) {
+//                    pos = pos.add(new Vector3d(0, 0, player.z));
+//                }
+//
+//                teleport.setX(pos.getX());
+//                teleport.setY(pos.getY());
+//                teleport.setZ(pos.getZ());
+//                teleport.setRelativeMask((byte) (teleport.getRelativeFlags().getMask() & 0b11000));
+//            }
 
-                if (teleport.isRelativeFlag(RelativeFlag.Y)) {
-                    pos = pos.add(new Vector3d(0, player.y, 0));
-                }
-
-                if (teleport.isRelativeFlag(RelativeFlag.Z)) {
-                    pos = pos.add(new Vector3d(0, 0, player.z));
-                }
-
-                teleport.setX(pos.getX());
-                teleport.setY(pos.getY());
-                teleport.setZ(pos.getZ());
-                teleport.setRelativeMask((byte) (teleport.getRelativeFlags().getMask() & 0b11000));
-            }
+            RelativeFlag flag = new RelativeFlag(teleport.flags());
 
             player.sendTransaction();
             final int lastTransactionSent = player.lastTransactionSent.get();
             event.getTasksAfterSend().add(player::sendTransaction);
 
-            if (teleport.isDismountVehicle()) {
-                // Remove player from vehicle
-                event.getTasksAfterSend().add(() -> {
-                    player.compensatedEntities.getSelf().eject();
-                });
-            }
+            // todo minestom
+//            if (teleport.isDismountVehicle()) {
+//                // Remove player from vehicle
+//                event.getTasksAfterSend().add(() -> {
+//                    player.compensatedEntities.getSelf().eject();
+//                });
+//            }
 
-            // For some reason teleports on 1.7 servers are offset by 1.62?
-            if (PacketEvents.getAPI().getServerManager().getVersion().isOlderThan(ServerVersion.V_1_8))
-                pos = pos.withY(pos.getY() - 1.62);
-
-            Location target = new Location(null, pos.getX(), pos.getY(), pos.getZ());
-            player.getSetbackTeleportUtil().addSentTeleport(target, lastTransactionSent, teleport.getRelativeFlags(), true, teleport.getTeleportId());
+            Pos target = new Pos(pos.getX(), pos.getY(), pos.getZ());
+            player.getSetbackTeleportUtil().addSentTeleport(target, lastTransactionSent, flag, true, teleport.teleportId());
         }
 
-        if (event.getPacketType() == PacketType.Play.Server.VEHICLE_MOVE) {
-            WrapperPlayServerVehicleMove vehicleMove = new WrapperPlayServerVehicleMove(event);
-
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+        if (event.getPacket() instanceof VehicleMovePacket vehicleMove) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
 
             player.sendTransaction();
             int lastTransactionSent = player.lastTransactionSent.get();
-            Vector3d finalPos = vehicleMove.getPosition();
+            Vector3d finalPos = new Vector3d(vehicleMove.position());
 
             event.getTasksAfterSend().add(player::sendTransaction);
+            // todo minestom here
             player.vehicleData.vehicleTeleports.add(new Pair<>(lastTransactionSent, finalPos));
         }
     }

@@ -8,22 +8,22 @@ import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.anticheat.update.PredictionComplete;
 import ac.grim.grimac.utils.data.VectorData;
 import ac.grim.grimac.utils.data.VelocityData;
-import com.github.retrooper.packetevents.event.PacketSendEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.world.states.WrappedBlockState;
-import com.github.retrooper.packetevents.protocol.world.states.defaulttags.BlockTags;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateType;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateTypes;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateValue;
-import com.github.retrooper.packetevents.util.Vector3f;
-import com.github.retrooper.packetevents.util.Vector3i;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerExplosion;
+import ac.grim.grimac.utils.minestom.BlockTags;
+import ac.grim.grimac.utils.minestom.MinestomWrappedBlockState;
+import ac.grim.grimac.utils.minestom.StateValue;
+import ac.grim.grimac.utils.vector.MutableVector;
+import ac.grim.grimac.utils.vector.Vector3d;
+import ac.grim.grimac.utils.vector.Vector3f;
+import ac.grim.grimac.utils.vector.Vector3i;
 import lombok.Getter;
-import org.bukkit.util.Vector;
-import org.jetbrains.annotations.Nullable;
+import net.minestom.server.event.player.PlayerPacketOutEvent;
+import net.minestom.server.instance.block.Block;
+import net.minestom.server.network.packet.server.play.ExplosionPacket;
 
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedList;
+import java.util.List;
 
 @CheckData(name = "AntiExplosion", configName = "Explosion", setback = 10)
 public class ExplosionHandler extends Check implements PostPredictionCheck {
@@ -43,37 +43,36 @@ public class ExplosionHandler extends Check implements PostPredictionCheck {
     }
 
     @Override
-    public void onPacketSend(final PacketSendEvent event) {
-        if (event.getPacketType() == PacketType.Play.Server.EXPLOSION) {
-            WrapperPlayServerExplosion explosion = new WrapperPlayServerExplosion(event);
+    public void onPacketSend(final PlayerPacketOutEvent event) {
+        if (event.getPacket() instanceof ExplosionPacket explosion) {
+            Vector3f velocity = new Vector3f(explosion.playerMotionX(), explosion.playerMotionY(), explosion.playerMotionZ());
 
-            Vector3f velocity = explosion.getPlayerMotion();
+            final ExplosionPacket.BlockInteraction blockInteraction = explosion.blockInteraction();
+            final boolean shouldDestroy = blockInteraction != ExplosionPacket.BlockInteraction.KEEP;
 
-            final @Nullable WrapperPlayServerExplosion.BlockInteraction blockInteraction = explosion.getBlockInteraction();
-            final boolean shouldDestroy = blockInteraction != WrapperPlayServerExplosion.BlockInteraction.KEEP_BLOCKS;
-            if (!explosion.getRecords().isEmpty() && shouldDestroy) {
+            if (!getRecords(explosion).isEmpty() && shouldDestroy) {
                 player.sendTransaction();
 
                 player.latencyUtils.addRealTimeTask(player.lastTransactionSent.get(), () -> {
-                    for (Vector3i record : explosion.getRecords()) {
+                    for (Vector3i record : getRecords(explosion)) {
                         // Null OR not flip redstone blocks, then set to air
-                        if (blockInteraction != WrapperPlayServerExplosion.BlockInteraction.TRIGGER_BLOCKS) {
+                        if (blockInteraction != ExplosionPacket.BlockInteraction.TRIGGER_BLOCK) {
                             player.compensatedWorld.updateBlock(record.x, record.y, record.z, 0);
                         } else {
                             // We need to flip redstone blocks, or do special things with other blocks
-                            final WrappedBlockState state = player.compensatedWorld.getWrappedBlockStateAt(record);
-                            final StateType type = state.getType();
+                            final MinestomWrappedBlockState state = player.compensatedWorld.getWrappedBlockStateAt(record);
+                            final Block type = state.getType();
                             if (BlockTags.CANDLES.contains(type) || BlockTags.CANDLE_CAKES.contains(type)) {
                                 state.setLit(false);
                                 continue;
-                            } else if (type == StateTypes.BELL) {
+                            } else if (type == Block.BELL) {
                                 // Does this affect anything? I don't know, I don't see anything that relies on whether a bell is ringing.
                                 continue;
                             }
 
                             // Otherwise try and flip/open it.
                             final Object poweredValue = state.getInternalData().get(StateValue.POWERED);
-                            final boolean canFlip = (poweredValue != null && !(Boolean) poweredValue) || type == StateTypes.LEVER;
+                            final boolean canFlip = (poweredValue != null && !(Boolean) poweredValue) || type == Block.LEVER;
                             if (canFlip) {
                                 player.compensatedWorld.tickOpenable(record.x, record.y, record.z);
                             }
@@ -84,11 +83,37 @@ public class ExplosionHandler extends Check implements PostPredictionCheck {
 
             if (velocity.x != 0 || velocity.y != 0 || velocity.z != 0) {
                 // No need to spam transactions
-                if (explosion.getRecords().isEmpty()) player.sendTransaction();
+                if (getRecords(explosion).isEmpty()) player.sendTransaction();
                 addPlayerExplosion(player.lastTransactionSent.get(), velocity);
+
+                // todo minestom what
                 event.getTasksAfterSend().add(player::sendTransaction);
             }
         }
+    }
+
+    private List<Vector3i> getRecords(ExplosionPacket packet) {
+        int recordsLength = packet.records().length;
+        List<Vector3i> records = new ArrayList<>(recordsLength);
+        Vector3i floor = toFloor(new Vector3d(packet.x(), packet.y(), packet.z()));
+
+        for (int i = 0; i < recordsLength; i++) {
+            int chunkPosX = packet.records()[i] + floor.getX();
+            int chunkPosY = packet.records()[i] + floor.getY();
+            int chunkPosZ = packet.records()[i] + floor.getZ();
+            records.add(new Vector3i(chunkPosX, chunkPosY, chunkPosZ));
+        }
+        return records;
+    }
+
+    private Vector3i toFloor(Vector3d position) {
+        int floorX;
+        int floorY;
+        int floorZ;
+        floorX = (int) Math.floor(position.x);
+        floorY = (int) Math.floor(position.y);
+        floorZ = (int) Math.floor(position.z);
+        return new Vector3i(floorX, floorY, floorZ);
     }
 
     public VelocityData getFutureExplosion() {
@@ -121,7 +146,7 @@ public class ExplosionHandler extends Check implements PostPredictionCheck {
     }
 
     public void addPlayerExplosion(int breadOne, Vector3f explosion) {
-        firstBreadMap.add(new VelocityData(-1, breadOne, player.getSetbackTeleportUtil().isSendingSetback, new Vector(explosion.getX(), explosion.getY(), explosion.getZ())));
+        firstBreadMap.add(new VelocityData(-1, breadOne, player.getSetbackTeleportUtil().isSendingSetback, new MutableVector(explosion.getX(), explosion.getY(), explosion.getZ())));
     }
 
     public void setPointThree(boolean isPointThree) {

@@ -1,8 +1,6 @@
 package ac.grim.grimac.utils.anticheat;
 
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.manager.server.ServerVersion;
-import org.bukkit.entity.Player;
+import net.minestom.server.entity.Player;
 
 import java.lang.reflect.Method;
 
@@ -19,14 +17,16 @@ public class MultiLibUtil {
     }
 
     // TODO: cache external players for better performance, but this only matters for people using multi-lib
+    // todo minestom the fuck is this
     public static boolean isExternalPlayer(Player player) {
-        if (externalPlayerMethod == null || (PacketEvents.getAPI().getServerManager().getVersion().isOlderThan(ServerVersion.V_1_18))) return false;
-        try {
-            return (boolean) externalPlayerMethod.invoke(player);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
+        return false;
+//        if (externalPlayerMethod == null || (PacketEvents.getAPI().getServerManager().getVersion().isOlderThan(ServerVersion.V_1_18))) return false;
+//        try {
+//            return (boolean) externalPlayerMethod.invoke(player);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            return false;
+//        }
     }
 
 

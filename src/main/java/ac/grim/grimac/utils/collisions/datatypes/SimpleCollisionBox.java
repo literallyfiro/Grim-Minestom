@@ -1,14 +1,14 @@
 package ac.grim.grimac.utils.collisions.datatypes;
 
 import ac.grim.grimac.utils.nmsutil.Ray;
-import com.github.retrooper.packetevents.protocol.world.BlockFace;
-import com.github.retrooper.packetevents.util.Vector3d;
-import com.github.retrooper.packetevents.util.Vector3i;
+import ac.grim.grimac.utils.vector.MutableVector;
+import ac.grim.grimac.utils.vector.Vector3d;
+import ac.grim.grimac.utils.vector.Vector3i;
 import it.unimi.dsi.fastutil.doubles.AbstractDoubleList;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import it.unimi.dsi.fastutil.doubles.DoubleList;
-import org.bukkit.Location;
-import org.bukkit.util.Vector;
+import net.minestom.server.coordinate.Pos;
+import net.minestom.server.instance.block.BlockFace;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +34,7 @@ public class SimpleCollisionBox implements CollisionBox {
         isFullBlock = fullBlock;
     }
 
-    public SimpleCollisionBox(Vector min, Vector max) {
+    public SimpleCollisionBox(MutableVector min, MutableVector max) {
         this(min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ());
     }
 
@@ -62,11 +62,11 @@ public class SimpleCollisionBox implements CollisionBox {
         this(min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ());
     }
 
-    public SimpleCollisionBox(Location loc, double width, double height) {
-        this(loc.toVector(), width, height);
+    public SimpleCollisionBox(Pos loc, double width, double height) {
+        this(new MutableVector(loc.asVec()), width, height);
     }
 
-    public SimpleCollisionBox(Vector vec, double width, double height) {
+    public SimpleCollisionBox(MutableVector vec, double width, double height) {
         this(vec.getX(), vec.getY(), vec.getZ(), vec.getX(), vec.getY(), vec.getZ());
 
         expand(width / 2, 0, width / 2);
@@ -129,16 +129,16 @@ public class SimpleCollisionBox implements CollisionBox {
         return this;
     }
 
-    public Vector[] corners() {
-        Vector[] vectors = new Vector[8];
-        vectors[0] = new Vector(minX, minY, minZ);
-        vectors[1] = new Vector(minX, minY, maxZ);
-        vectors[2] = new Vector(maxX, minY, minZ);
-        vectors[3] = new Vector(maxX, minY, maxZ);
-        vectors[4] = new Vector(minX, maxY, minZ);
-        vectors[5] = new Vector(minX, maxY, maxZ);
-        vectors[6] = new Vector(maxX, maxY, minZ);
-        vectors[7] = new Vector(maxX, maxY, maxZ);
+    public MutableVector[] corners() {
+        MutableVector[] vectors = new MutableVector[8];
+        vectors[0] = new MutableVector(minX, minY, minZ);
+        vectors[1] = new MutableVector(minX, minY, maxZ);
+        vectors[2] = new MutableVector(maxX, minY, minZ);
+        vectors[3] = new MutableVector(maxX, minY, maxZ);
+        vectors[4] = new MutableVector(minX, maxY, minZ);
+        vectors[5] = new MutableVector(minX, maxY, maxZ);
+        vectors[6] = new MutableVector(maxX, maxY, minZ);
+        vectors[7] = new MutableVector(maxX, maxY, maxZ);
         return vectors;
     }
 
@@ -264,19 +264,12 @@ public class SimpleCollisionBox implements CollisionBox {
 
         // Get the direction of block we are trying to connect to -> towards the block that is trying to connect
         final BlockFace faceToSourceConnector = axis.getOppositeFace();
-        switch (faceToSourceConnector) {
-            case EAST:
-            case WEST:
-                return this.minX == 0 && this.maxX == 1;
-            case UP:
-            case DOWN:
-                return this.minY == 0 && this.maxY == 1;
-            case NORTH:
-            case SOUTH:
-                return this.minZ == 0 && this.maxZ == 1;
-        }
+        return switch (faceToSourceConnector) {
+            case EAST, WEST -> this.minX == 0 && this.maxX == 1;
+            case TOP, BOTTOM -> this.minY == 0 && this.maxY == 1;
+            case NORTH, SOUTH -> this.minZ == 0 && this.maxZ == 1;
+        };
 
-        return false;
     }
 
     public boolean isFullBlockNoCache() {
@@ -386,14 +379,14 @@ public class SimpleCollisionBox implements CollisionBox {
      */
     // Copied from hawk lol
     // I would like to point out that this is magic to me and I have not attempted to understand this code
-    public Vector intersectsRay(Ray ray, float minDist, float maxDist) {
-        Vector invDir = new Vector(1f / ray.calculateDirection().getX(), 1f / ray.calculateDirection().getY(), 1f / ray.calculateDirection().getZ());
+    public MutableVector intersectsRay(Ray ray, float minDist, float maxDist) {
+        MutableVector invDir = new MutableVector(1f / ray.calculateDirection().getX(), 1f / ray.calculateDirection().getY(), 1f / ray.calculateDirection().getZ());
 
         boolean signDirX = invDir.getX() < 0;
         boolean signDirY = invDir.getY() < 0;
         boolean signDirZ = invDir.getZ() < 0;
 
-        Vector bbox = signDirX ? max() : min();
+        MutableVector bbox = signDirX ? max() : min();
         double tmin = (bbox.getX() - ray.getOrigin().getX()) * invDir.getX();
         bbox = signDirX ? min() : max();
         double tmax = (bbox.getX() - ray.getOrigin().getX()) * invDir.getX();
@@ -432,12 +425,12 @@ public class SimpleCollisionBox implements CollisionBox {
         return null;
     }
 
-    public Vector max() {
-        return new Vector(maxX, maxY, maxZ);
+    public MutableVector max() {
+        return new MutableVector(maxX, maxY, maxZ);
     }
 
-    public Vector min() {
-        return new Vector(minX, minY, minZ);
+    public MutableVector min() {
+        return new MutableVector(minX, minY, minZ);
     }
 
     public DoubleList getYPointPositions() {

@@ -7,18 +7,17 @@ import ac.grim.grimac.utils.collisions.datatypes.CollisionBox;
 import ac.grim.grimac.utils.collisions.datatypes.SimpleCollisionBox;
 import ac.grim.grimac.utils.data.VectorData;
 import ac.grim.grimac.utils.data.tags.SyncedTags;
+import ac.grim.grimac.utils.minestom.BlockTags;
+import ac.grim.grimac.utils.minestom.MinestomWrappedBlockState;
 import ac.grim.grimac.utils.nmsutil.*;
-import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.potion.PotionType;
-import com.github.retrooper.packetevents.protocol.potion.PotionTypes;
-import com.github.retrooper.packetevents.protocol.world.states.WrappedBlockState;
-import com.github.retrooper.packetevents.protocol.world.states.defaulttags.BlockTags;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateType;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateTypes;
+import ac.grim.grimac.utils.vector.MutableVector;
+import ac.grim.grimac.utils.ClientVersion;
 import lombok.Getter;
 import lombok.Setter;
-import org.bukkit.util.Vector;
+import net.minestom.server.instance.block.Block;
+import net.minestom.server.item.Material;
+import net.minestom.server.potion.PotionEffect;
+import net.minestom.server.potion.PotionType;
 
 import java.util.OptionalInt;
 import java.util.Set;
@@ -120,8 +119,8 @@ public class PointThreeEstimator {
     }
 
     // Handle game events that occur between skipped ticks - thanks a lot mojang for removing the idle packet!
-    public void handleChangeBlock(int x, int y, int z, WrappedBlockState state) {
-        final StateType stateType = state.getType();
+    public void handleChangeBlock(int x, int y, int z, MinestomWrappedBlockState state) {
+        final Block stateType = state.getType();
         CollisionBox data = CollisionData.getData(stateType).getMovementCollisionBox(player, player.getClientVersion(), state, x, y, z);
         SimpleCollisionBox normalBox = GetBoundingBox.getBoundingBoxFromPosAndSize(player, player.x, player.y, player.z, 0.6f, 1.8f);
 
@@ -133,14 +132,14 @@ public class PointThreeEstimator {
         }
 
         SimpleCollisionBox pointThreeBox = GetBoundingBox.getBoundingBoxFromPosAndSize(player, player.x, player.y - 0.03, player.z, 0.66f, 1.86f);
-        if ((Materials.isWater(player.getClientVersion(), state) || stateType == StateTypes.LAVA) &&
+        if ((Materials.isWater(player.getClientVersion(), state) || stateType == Block.LAVA) &&
                 pointThreeBox.isIntersected(new SimpleCollisionBox(x, y, z))) {
 
-            if (stateType == StateTypes.BUBBLE_COLUMN) {
+            if (stateType == Block.BUBBLE_COLUMN) {
                 isNearBubbleColumn = true;
             }
 
-            Vector fluidVector = FluidTypeFlowing.getFlow(player, x, y, z);
+            MutableVector fluidVector = FluidTypeFlowing.getFlow(player, x, y, z);
             if (fluidVector.getX() != 0 || fluidVector.getZ() != 0) {
                 isNearHorizontalFlowingLiquid = true;
             }
@@ -167,7 +166,7 @@ public class PointThreeEstimator {
             }
         }
 
-        if (!player.compensatedEntities.getSelf().inVehicle() && ((stateType == StateTypes.POWDER_SNOW && player.getInventory().getBoots().getType() == ItemTypes.LEATHER_BOOTS)
+        if (!player.compensatedEntities.getSelf().inVehicle() && ((stateType == Block.POWDER_SNOW && player.getInventory().getBoots().getType() == Material.LEATHER_BOOTS)
                 || player.tagManager.block(SyncedTags.CLIMBABLE).contains(stateType)) && pointThreeBox.isIntersected(new SimpleCollisionBox(x, y, z))) {
             isNearClimbable = true;
         }
@@ -196,8 +195,8 @@ public class PointThreeEstimator {
                 || player.checkManager.getKnockbackHandler().isKnockbackPointThree() || player.checkManager.getExplosionHandler().isExplosionPointThree();
     }
 
-    public void updatePlayerPotions(PotionType potion, Integer level) {
-        if (potion == PotionTypes.LEVITATION) {
+    public void updatePlayerPotions(PotionEffect potion, Integer level) {
+        if (potion == PotionEffect.LEVITATION) {
             maxPositiveLevitation = Math.max(level == null ? Integer.MIN_VALUE : level, maxPositiveLevitation);
             minNegativeLevitation = Math.min(level == null ? Integer.MAX_VALUE : level, minNegativeLevitation);
         }
@@ -248,9 +247,9 @@ public class PointThreeEstimator {
 
         // Check for flowing water
         Collisions.hasMaterial(player, pointThreeBox, (pair) -> {
-            final WrappedBlockState state = pair.getFirst();
-            final StateType stateType = state.getType();
-            if (player.tagManager.block(SyncedTags.CLIMBABLE).contains(stateType) || (stateType == StateTypes.POWDER_SNOW && !player.compensatedEntities.getSelf().inVehicle() && player.getInventory().getBoots().getType() == ItemTypes.LEATHER_BOOTS)) {
+            final MinestomWrappedBlockState state = pair.getFirst();
+            final Block stateType = state.getType();
+            if (player.tagManager.block(SyncedTags.CLIMBABLE).contains(stateType) || (stateType == Block.POWDER_SNOW && !player.compensatedEntities.getSelf().inVehicle() && player.getInventory().getBoots().getType() == Material.LEATHER_BOOTS)) {
                 isNearClimbable = true;
             }
 
@@ -258,11 +257,11 @@ public class PointThreeEstimator {
                 isNearClimbable = isNearClimbable || Collisions.trapdoorUsableAsLadder(player, pair.getSecond().getX(), pair.getSecond().getY(), pair.getSecond().getZ(), state);
             }
 
-            if (stateType == StateTypes.BUBBLE_COLUMN) {
+            if (stateType == Block.BUBBLE_COLUMN) {
                 isNearBubbleColumn = true;
             }
 
-            if (Materials.isWater(player.getClientVersion(), pair.getFirst()) || pair.getFirst().getType() == StateTypes.LAVA) {
+            if (Materials.isWater(player.getClientVersion(), pair.getFirst()) || pair.getFirst().getType() == Block.LAVA) {
                 isNearFluid = true;
             }
 
@@ -303,7 +302,7 @@ public class PointThreeEstimator {
         player.boundingBox = player.boundingBox.copy().expand(0.03, 0, 0.03).offset(0, 0.03, 0);
         // 0.16 magic value -> 0.03 plus gravity, plus some additional lenience
         double searchDistance = -0.2 + Math.min(0, y);
-        Vector collisionResult = Collisions.collide(player, 0, searchDistance, 0);
+        MutableVector collisionResult = Collisions.collide(player, 0, searchDistance, 0);
         player.boundingBox = playerBox;
         return collisionResult.getY() != searchDistance;
     }
@@ -337,9 +336,9 @@ public class PointThreeEstimator {
         // Takes 0.01 millis, on average, to compute... this should be improved eventually
         for (VectorData data : init) {
             // Try to get the vector as close to zero as possible to give the best chance at 0.03...
-            Vector toZeroVec = new PredictionEngine().handleStartingVelocityUncertainty(player, data, new Vector());
+            MutableVector toZeroVec = new PredictionEngine().handleStartingVelocityUncertainty(player, data, new MutableVector());
             // Collide to handle mostly gravity, but other scenarios similar to this.
-            Vector collisionResult = Collisions.collide(player, toZeroVec.getX(), toZeroVec.getY(), toZeroVec.getZ(), Integer.MIN_VALUE, null);
+            MutableVector collisionResult = Collisions.collide(player, toZeroVec.getX(), toZeroVec.getY(), toZeroVec.getZ(), Integer.MIN_VALUE, null);
 
             // If this tick is the tick after y velocity was by 0, a stepping movement is POSSIBLE to have been hidden
             // A bit hacky... is there a better way?  I'm unsure...
@@ -441,7 +440,7 @@ public class PointThreeEstimator {
     }
 
     private double iterateGravity(GrimPlayer player, double y) {
-        final OptionalInt levitation = player.compensatedEntities.getPotionLevelForPlayer(PotionTypes.LEVITATION);
+        final OptionalInt levitation = player.compensatedEntities.getPotionLevelForPlayer(PotionEffect.LEVITATION);
         if (levitation.isPresent()) {
             // This supports both positive and negative levitation
             y += (0.05 * (levitation.getAsInt() + 1) - y * 0.2);

@@ -7,16 +7,18 @@ import ac.grim.grimac.utils.data.attribute.ValuedAttribute;
 import ac.grim.grimac.utils.data.packetentity.PacketEntity;
 import ac.grim.grimac.utils.enums.FluidTag;
 import ac.grim.grimac.utils.enums.Pose;
-import ac.grim.grimac.utils.latency.CompensatedEntities;
 import ac.grim.grimac.utils.math.GrimMath;
 import ac.grim.grimac.utils.nmsutil.*;
-import com.github.retrooper.packetevents.protocol.attribute.Attributes;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.world.BlockFace;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateType;
-import com.github.retrooper.packetevents.util.Vector3d;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUpdateAttributes;
-import org.bukkit.util.Vector;
+import ac.grim.grimac.utils.ClientVersion;
+import ac.grim.grimac.utils.vector.Vector3d;
+import ac.grim.grimac.utils.vector.MutableVector;
+import net.minestom.server.entity.attribute.Attribute;
+import net.minestom.server.entity.attribute.AttributeModifier;
+import net.minestom.server.entity.attribute.AttributeOperation;
+import net.minestom.server.instance.block.Block;
+import net.minestom.server.instance.block.BlockFace;
+import net.minestom.server.network.packet.server.play.EntityAttributesPacket;
+import net.minestom.server.utils.NamespaceID;
 
 import java.util.Optional;
 
@@ -32,7 +34,7 @@ public class PlayerBaseTick {
     }
 
     protected static SimpleCollisionBox getBoundingBoxForPose(GrimPlayer player, Pose pose, double x, double y, double z) {
-        final float scale = (float) player.compensatedEntities.getSelf().getAttributeValue(Attributes.GENERIC_SCALE);
+        final float scale = (float) player.compensatedEntities.getSelf().getAttributeValue(Attribute.GENERIC_SCALE);
         final float width = pose.width * scale;
         final float height = pose.height * scale;
         float radius = width / 2.0F;
@@ -41,11 +43,11 @@ public class PlayerBaseTick {
 
     public void doBaseTick() {
         // Keep track of basetick stuff
-        player.baseTickAddition = new Vector();
-        player.baseTickWaterPushing = new Vector();
+        player.baseTickAddition = new MutableVector();
+        player.baseTickWaterPushing = new MutableVector();
 
         if (player.isFlying && player.isSneaking && !player.compensatedEntities.getSelf().inVehicle()) {
-            Vector flyingShift = new Vector(0, player.flySpeed * -3, 0);
+            MutableVector flyingShift = new MutableVector(0, player.flySpeed * -3, 0);
             player.baseTickAddVector(flyingShift);
             player.trackBaseTickAddition(flyingShift);
         }
@@ -61,7 +63,7 @@ public class PlayerBaseTick {
         // You cannot crouch while flying, only shift - could be specific to 1.14?
         // pre-1.13 clients don't have this code
         if (player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_13) && player.wasTouchingWater && player.isSneaking && !player.isFlying && !player.compensatedEntities.getSelf().inVehicle()) {
-            Vector waterPushVector = new Vector(0, -0.04f, 0);
+            MutableVector waterPushVector = new MutableVector(0, -0.04f, 0);
             player.baseTickAddVector(waterPushVector);
             player.trackBaseTickAddition(waterPushVector);
         }
@@ -135,7 +137,7 @@ public class PlayerBaseTick {
 
     public void updateInWaterStateAndDoFluidPushing() {
         updateInWaterStateAndDoWaterCurrentPushing();
-        final double multiplier = player.dimensionType.isUltraWarm() ? 0.007 : 0.0023333333333333335;
+        final double multiplier = player.dimensionType.ultrawarm() ? 0.007 : 0.0023333333333333335;
         // 1.15 and below clients use block collisions to check for being in lava
         if (player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_16))
             player.wasTouchingLava = this.updateFluidHeightAndDoFluidPushing(FluidTag.LAVA, multiplier);
@@ -150,18 +152,20 @@ public class PlayerBaseTick {
         // Pre-1.17 clients don't have powder snow and therefore don't desync
         if (player.getClientVersion().isOlderThanOrEquals(ClientVersion.V_1_16_4)) return;
 
-        final ValuedAttribute playerSpeed = player.compensatedEntities.getSelf().getAttribute(Attributes.GENERIC_MOVEMENT_SPEED).get();
+        final ValuedAttribute playerSpeed = player.compensatedEntities.getSelf().getAttribute(Attribute.GENERIC_MOVEMENT_SPEED).get();
 
         // Might be null after respawn?
-        final Optional<WrapperPlayServerUpdateAttributes.Property> property = playerSpeed.property();
-        if (!property.isPresent()) return;
+        final Optional<EntityAttributesPacket.Property> property = playerSpeed.property();
+        if (property.isEmpty()) return;
 
         // The client first desync's this attribute
-        property.get().getModifiers().removeIf(modifier -> modifier.getUUID().equals(CompensatedEntities.SNOW_MODIFIER_UUID) || modifier.getName().getKey().equals("powder_snow"));
+        NamespaceID powderSnow = NamespaceID.from("minecraft:powder_snow");
+        // todo minestom modifiers is a collection
+//        property.get().modifiers().removeIf(modifier -> modifier.id().key().equals(powderSnow));
         playerSpeed.recalculate();
 
         // And then re-adds it using purely what the server has sent it
-        StateType type = BlockProperties.getOnPos(player, player.mainSupportingBlockData, new Vector3d(player.x, player.y, player.z));
+        Block type = BlockProperties.getOnPos(player, player.mainSupportingBlockData, new Vector3d(player.x, player.y, player.z));
 
         if (!type.isAir()) {
             int i = player.powderSnowFrozenTicks;
@@ -171,7 +175,7 @@ public class PlayerBaseTick {
                 float percentFrozen = (float) Math.min(i, ticksToFreeze) / (float) ticksToFreeze;
                 float percentFrozenReducedToSpeed = -0.05F * percentFrozen;
 
-                property.get().getModifiers().add(new WrapperPlayServerUpdateAttributes.PropertyModifier(CompensatedEntities.SNOW_MODIFIER_UUID, percentFrozenReducedToSpeed, WrapperPlayServerUpdateAttributes.PropertyModifier.Operation.ADDITION));
+                property.get().modifiers().add(new AttributeModifier(powderSnow, percentFrozenReducedToSpeed, AttributeOperation.ADD_VALUE));
                 playerSpeed.recalculate();
             }
         }
@@ -363,22 +367,12 @@ public class PlayerBaseTick {
             double d7 = direction2 == BlockFace.WEST || direction2 == BlockFace.EAST ? relativeXMovement : relativeZMovement;
             d6 = direction2 == BlockFace.EAST || direction2 == BlockFace.SOUTH ? 1.0 - d7 : d7;
             // d7 and d6 flip the movement direction based on desired movement direction
-            boolean doesSuffocate;
-            switch (direction2) {
-                case EAST:
-                    doesSuffocate = this.suffocatesAt(blockX + 1, blockZ);
-                    break;
-                case WEST:
-                    doesSuffocate = this.suffocatesAt(blockX - 1, blockZ);
-                    break;
-                case NORTH:
-                    doesSuffocate = this.suffocatesAt(blockX, blockZ - 1);
-                    break;
-                default:
-                case SOUTH:
-                    doesSuffocate = this.suffocatesAt(blockX, blockZ + 1);
-                    break;
-            }
+            boolean doesSuffocate = switch (direction2) {
+                case EAST -> this.suffocatesAt(blockX + 1, blockZ);
+                case WEST -> this.suffocatesAt(blockX - 1, blockZ);
+                case NORTH -> this.suffocatesAt(blockX, blockZ - 1);
+                default -> this.suffocatesAt(blockX, blockZ + 1);
+            };
 
             if (d6 >= lowestValue || doesSuffocate) continue;
             lowestValue = d6;
@@ -426,7 +420,7 @@ public class PlayerBaseTick {
         }
 
         boolean hasPushed = false;
-        Vector vec3 = new Vector();
+        MutableVector vec3 = new MutableVector();
 
         for (int x = floorX; x < ceilX; ++x) {
             for (int y = floorY; y < ceilY; ++y) {
@@ -476,7 +470,7 @@ public class PlayerBaseTick {
         }
         double d2 = 0.0;
         boolean hasTouched = false;
-        Vector vec3 = new Vector();
+        MutableVector vec3 = new MutableVector();
         int n7 = 0;
 
         for (int x = floorX; x < ceilX; ++x) {
@@ -501,7 +495,7 @@ public class PlayerBaseTick {
                     d2 = Math.max(fluidHeightToWorld - aABB.minY, d2);
 
                     if (!player.isFlying) {
-                        Vector vec32 = FluidTypeFlowing.getFlow(player, x, y, z);
+                        MutableVector vec32 = FluidTypeFlowing.getFlow(player, x, y, z);
                         if (d2 < 0.4) {
                             vec32 = vec32.multiply(d2);
                         }

@@ -1,30 +1,24 @@
 package ac.grim.grimac.checks.impl.misc;
 
-import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
+import ac.grim.grimac.utils.WrapperPlayClientPlayerFlying;
 import ac.grim.grimac.utils.math.GrimMath;
+import ac.grim.grimac.utils.minestom.MinestomWrappedBlockState;
 import ac.grim.grimac.utils.nmsutil.BlockBreakSpeed;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.manager.server.ServerVersion;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.player.DiggingAction;
-import com.github.retrooper.packetevents.protocol.world.states.WrappedBlockState;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateTypes;
-import com.github.retrooper.packetevents.util.Vector3i;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerDigging;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerAcknowledgeBlockChanges;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBlockChange;
-import io.github.retrooper.packetevents.util.folia.FoliaScheduler;
-import org.bukkit.Chunk;
-import org.bukkit.Location;
-import org.bukkit.block.Block;
-import org.bukkit.entity.Player;
+import ac.grim.grimac.utils.vector.Vector3i;
+import net.minestom.server.coordinate.Pos;
+import net.minestom.server.entity.Player;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.instance.Chunk;
+import net.minestom.server.instance.block.Block;
+import net.minestom.server.network.packet.client.play.ClientAnimationPacket;
+import net.minestom.server.network.packet.client.play.ClientPlayerDiggingPacket;
+import net.minestom.server.network.packet.server.play.AcknowledgeBlockChangePacket;
+import net.minestom.server.network.packet.server.play.BlockChangePacket;
 
 // Based loosely off of Hawk BlockBreakSpeedSurvival
 // Also based loosely off of NoCheatPlus FastBreak
@@ -50,22 +44,21 @@ public class FastBreak extends Check implements PacketCheck {
     double blockDelayBalance = 0;
 
     @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
+    public void onPacketReceive(PlayerPacketEvent event) {
         // Find the most optimal block damage using the animation packet, which is sent at least once a tick when breaking blocks
         // On 1.8 clients, via screws with this packet meaning we must fall back to the 1.8 idle flying packet
-        if ((player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_9) ? event.getPacketType() == PacketType.Play.Client.ANIMATION : WrapperPlayClientPlayerFlying.isFlying(event.getPacketType())) && targetBlock != null) {
+        if ((player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_9) ? event.getPacket() instanceof ClientAnimationPacket : WrapperPlayClientPlayerFlying.isFlying(event.getPacket())) && targetBlock != null) {
             maximumBlockDamage = Math.max(maximumBlockDamage, BlockBreakSpeed.getBlockDamage(player, targetBlock));
         }
 
-        if (event.getPacketType() == PacketType.Play.Client.PLAYER_DIGGING) {
-            WrapperPlayClientPlayerDigging digging = new WrapperPlayClientPlayerDigging(event);
-            final Vector3i blockPosition = digging.getBlockPosition();
+        if (event.getPacket() instanceof ClientPlayerDiggingPacket digging) {
+            final Vector3i blockPosition = new Vector3i(digging.blockPosition());
 
-            if (digging.getAction() == DiggingAction.START_DIGGING) {
-                WrappedBlockState block = player.compensatedWorld.getWrappedBlockStateAt(blockPosition);
+            if (digging.status() == ClientPlayerDiggingPacket.Status.STARTED_DIGGING) {
+                MinestomWrappedBlockState block = player.compensatedWorld.getWrappedBlockStateAt(blockPosition);
                 
                 // Exempt all blocks that do not exist in the player version
-                if (WrappedBlockState.getDefaultState(player.getClientVersion(), block.getType()).getType() == StateTypes.AIR) {
+                if (MinestomWrappedBlockState.getDefaultState(block.getType()).getType() == Block.AIR) {
                     return;
                 }
             
@@ -93,7 +86,7 @@ public class FastBreak extends Check implements PacketCheck {
                 clampBalance();
             }
 
-            if (digging.getAction() == DiggingAction.FINISHED_DIGGING && targetBlock != null) {
+            if (digging.status() == ClientPlayerDiggingPacket.Status.FINISHED_DIGGING && targetBlock != null) {
                 double predictedTime = Math.ceil(1 / maximumBlockDamage) * 50;
                 double realTime = System.currentTimeMillis() - startBreak;
                 double diff = predictedTime - realTime;
@@ -107,34 +100,28 @@ public class FastBreak extends Check implements PacketCheck {
                 }
 
                 if (blockBreakBalance > 1000) { // If more than a second of advantage
-                    FoliaScheduler.getEntityScheduler().execute(player.bukkitPlayer, GrimAPI.INSTANCE.getPlugin(), () -> {
-                        Player bukkitPlayer = player.bukkitPlayer;
-                        if (bukkitPlayer == null || !bukkitPlayer.isOnline()) return;
+                    Player bukkitPlayer = player.bukkitPlayer;
+                    if (bukkitPlayer == null || !bukkitPlayer.isOnline()) return;
 
-                        if (bukkitPlayer.getLocation().distance(new Location(bukkitPlayer.getWorld(), blockPosition.getX(), blockPosition.getY(), blockPosition.getZ())) < 64) {
-                            final int chunkX = blockPosition.getX() >> 4;
-                            final int chunkZ = blockPosition.getZ() >> 4;
-                            if (!bukkitPlayer.getWorld().isChunkLoaded(chunkX, chunkZ)) return; // Don't load chunks sync
+                    if (bukkitPlayer.getPosition().distance(new Pos(blockPosition.getX(), blockPosition.getY(), blockPosition.getZ())) < 64) {
+                        final int chunkX = blockPosition.getX() >> 4;
+                        final int chunkZ = blockPosition.getZ() >> 4;
+                        if (!bukkitPlayer.getInstance().isChunkLoaded(chunkX, chunkZ)) return; // Don't load chunks sync
 
-                            Chunk chunk = bukkitPlayer.getWorld().getChunkAt(chunkX, chunkZ);
-                            Block block = chunk.getBlock(blockPosition.getX() & 15, blockPosition.getY(), blockPosition.getZ() & 15);
+                        Chunk chunk = bukkitPlayer.getInstance().getChunkAt(chunkX, chunkZ);
+                        if (chunk == null) return;
+                        Block block = chunk.getBlock(blockPosition.getX() & 15, blockPosition.getY(), blockPosition.getZ() & 15);
 
-                            int blockId;
+//                        if (PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_13)) {
+//                            // Cache this because strings are expensive
+//                            blockId = WrappedBlockState.getByString(PacketEvents.getAPI().getServerManager().getVersion().toClientVersion(), block.getBlockData().getAsString(false)).getGlobalId();
+//                        } else {
+//                            blockId = (block.getType().getId() << 4) | block.getData();
+//                        }
 
-                            if (PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_13)) {
-                                // Cache this because strings are expensive
-                                blockId = WrappedBlockState.getByString(PacketEvents.getAPI().getServerManager().getVersion().toClientVersion(), block.getBlockData().getAsString(false)).getGlobalId();
-                            } else {
-                                blockId = (block.getType().getId() << 4) | block.getData();
-                            }
-
-                            player.user.sendPacket(new WrapperPlayServerBlockChange(blockPosition, blockId));
-
-                            if (PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_19)) { // Via will handle this for us pre-1.19
-                                player.user.sendPacket(new WrapperPlayServerAcknowledgeBlockChanges(digging.getSequence())); // Make 1.19 clients apply the changes
-                            }
-                        }
-                    }, null, 0);
+                        player.bukkitPlayer.sendPacket(new BlockChangePacket(blockPosition.asPos(), block));
+                        player.bukkitPlayer.sendPacket(new AcknowledgeBlockChangePacket(digging.sequence()));
+                    }
 
                     if (flagAndAlert("Diff=" + diff + ",Balance=" + blockBreakBalance) && shouldModifyPackets()) {
                         event.setCancelled(true);

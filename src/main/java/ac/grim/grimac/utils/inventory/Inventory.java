@@ -6,10 +6,9 @@ import ac.grim.grimac.utils.inventory.slot.EquipmentSlot;
 import ac.grim.grimac.utils.inventory.slot.ResultSlot;
 import ac.grim.grimac.utils.inventory.slot.Slot;
 import ac.grim.grimac.utils.lists.CorrectingPlayerInventoryStorage;
-import com.github.retrooper.packetevents.protocol.item.ItemStack;
-import com.github.retrooper.packetevents.protocol.item.type.ItemType;
-import com.github.retrooper.packetevents.protocol.player.GameMode;
 import lombok.Getter;
+import net.minestom.server.entity.GameMode;
+import net.minestom.server.item.Material;
 
 public class Inventory extends AbstractContainerMenu {
     public static final int SLOT_OFFHAND = 45;
@@ -48,27 +47,27 @@ public class Inventory extends AbstractContainerMenu {
         addSlot(new Slot(inventoryStorage, 45));
     }
 
-    public ItemStack getHelmet() {
+    public ModifiableItemStack getHelmet() {
         return inventoryStorage.getItem(SLOT_HELMET);
     }
 
-    public ItemStack getChestplate() {
+    public ModifiableItemStack getChestplate() {
         return inventoryStorage.getItem(SLOT_CHESTPLATE);
     }
 
-    public ItemStack getLeggings() {
+    public ModifiableItemStack getLeggings() {
         return inventoryStorage.getItem(SLOT_LEGGINGS);
     }
 
-    public ItemStack getBoots() {
+    public ModifiableItemStack getBoots() {
         return inventoryStorage.getItem(SLOT_BOOTS);
     }
 
-    public ItemStack getOffhand() {
+    public ModifiableItemStack getOffhand() {
         return inventoryStorage.getItem(SLOT_OFFHAND);
     }
 
-    public boolean hasItemType(ItemType item) {
+    public boolean hasItemType(Material item) {
         for (int i = 0; i < inventoryStorage.items.length; ++i) {
             if (inventoryStorage.getItem(i).getType() == item) {
                 return true;
@@ -77,19 +76,19 @@ public class Inventory extends AbstractContainerMenu {
         return false;
     }
 
-    public ItemStack getHeldItem() {
+    public ModifiableItemStack getHeldItem() {
         return inventoryStorage.getItem(selected + HOTBAR_OFFSET);
     }
 
-    public void setHeldItem(ItemStack item) {
+    public void setHeldItem(ModifiableItemStack item) {
         inventoryStorage.setItem(selected + HOTBAR_OFFSET, item);
     }
 
-    public ItemStack getOffhandItem() {
+    public ModifiableItemStack getOffhandItem() {
         return inventoryStorage.getItem(SLOT_OFFHAND);
     }
 
-    public boolean add(ItemStack p_36055_) {
+    public boolean add(ModifiableItemStack p_36055_) {
         return this.add(-1, p_36055_);
     }
 
@@ -103,7 +102,7 @@ public class Inventory extends AbstractContainerMenu {
         return -1;
     }
 
-    public int getSlotWithRemainingSpace(ItemStack toAdd) {
+    public int getSlotWithRemainingSpace(ModifiableItemStack toAdd) {
         if (this.hasRemainingSpaceForItem(getHeldItem(), toAdd)) {
             return this.selected;
         } else if (this.hasRemainingSpaceForItem(getOffhandItem(), toAdd)) {
@@ -119,11 +118,11 @@ public class Inventory extends AbstractContainerMenu {
         }
     }
 
-    private boolean hasRemainingSpaceForItem(ItemStack one, ItemStack two) {
-        return !one.isEmpty() && ItemStack.isSameItemSameTags(one, two) && one.getAmount() < one.getMaxStackSize() && one.getAmount() < this.getMaxStackSize();
+    private boolean hasRemainingSpaceForItem(ModifiableItemStack one, ModifiableItemStack two) {
+        return !one.isEmpty() && one.getItemStack().isSimilar(two.getItemStack()) && one.getAmount() < one.getMaxStackSize() && one.getAmount() < this.getMaxStackSize();
     }
 
-    private int addResource(ItemStack resource) {
+    private int addResource(ModifiableItemStack resource) {
         int i = this.getSlotWithRemainingSpace(resource);
         if (i == -1) {
             i = this.getFreeSlot();
@@ -132,9 +131,9 @@ public class Inventory extends AbstractContainerMenu {
         return i == -1 ? resource.getAmount() : this.addResource(i, resource);
     }
 
-    private int addResource(int slot, ItemStack stack) {
+    private int addResource(int slot, ModifiableItemStack stack) {
         int i = stack.getAmount();
-        ItemStack itemstack = inventoryStorage.getItem(slot);
+        ModifiableItemStack itemstack = inventoryStorage.getItem(slot);
 
         if (itemstack.isEmpty()) {
             itemstack = stack.copy();
@@ -142,10 +141,7 @@ public class Inventory extends AbstractContainerMenu {
             inventoryStorage.setItem(slot, itemstack);
         }
 
-        int j = i;
-        if (i > itemstack.getMaxStackSize() - itemstack.getAmount()) {
-            j = itemstack.getMaxStackSize() - itemstack.getAmount();
-        }
+        int j = Math.min(i, itemstack.getMaxStackSize() - itemstack.getAmount());
 
         if (j > this.getMaxStackSize() - itemstack.getAmount()) {
             j = this.getMaxStackSize() - itemstack.getAmount();
@@ -160,7 +156,7 @@ public class Inventory extends AbstractContainerMenu {
         }
     }
 
-    public boolean add(int p_36041_, ItemStack p_36042_) {
+    public boolean add(int p_36041_, ModifiableItemStack p_36042_) {
         if (p_36042_.isEmpty()) {
             return false;
         } else {
@@ -201,53 +197,53 @@ public class Inventory extends AbstractContainerMenu {
     }
 
     @Override
-    public ItemStack quickMoveStack(int slotID) {
-        ItemStack original = ItemStack.EMPTY;
+    public ModifiableItemStack quickMoveStack(int slotID) {
+        ModifiableItemStack original = ModifiableItemStack.EMPTY;
         Slot slot = getSlots().get(slotID);
 
         if (slot != null && slot.hasItem()) {
-            ItemStack toMove = slot.getItem();
+            ModifiableItemStack toMove = slot.getItem();
             original = toMove.copy();
-            EquipmentType equipmentslot = EquipmentType.getEquipmentSlotForItem(original);
+            EquipmentType equipmentslot = EquipmentType.getEquipmentSlotForItem(original.getItemStack());
             if (slotID == 0) {
                 if (!this.moveItemStackTo(toMove, 9, 45, true)) {
-                    return ItemStack.EMPTY;
+                    return ModifiableItemStack.EMPTY;
                 }
             } else if (slotID >= 1 && slotID < 5) {
                 if (!this.moveItemStackTo(toMove, 9, 45, false)) {
-                    return ItemStack.EMPTY;
+                    return ModifiableItemStack.EMPTY;
                 }
             } else if (slotID >= 5 && slotID < 9) {
                 if (!this.moveItemStackTo(toMove, 9, 45, false)) {
-                    return ItemStack.EMPTY;
+                    return ModifiableItemStack.EMPTY;
                 }
             } else if (equipmentslot.isArmor() && !getSlots().get(8 - equipmentslot.getIndex()).hasItem()) {
                 int i = 8 - equipmentslot.getIndex();
                 if (!this.moveItemStackTo(toMove, i, i + 1, false)) {
-                    return ItemStack.EMPTY;
+                    return ModifiableItemStack.EMPTY;
                 }
             } else if (equipmentslot == EquipmentType.OFFHAND && !getSlots().get(45).hasItem()) {
                 if (!this.moveItemStackTo(toMove, 45, 46, false)) {
-                    return ItemStack.EMPTY;
+                    return ModifiableItemStack.EMPTY;
                 }
             } else if (slotID >= 9 && slotID < 36) {
                 if (!this.moveItemStackTo(toMove, 36, 45, false)) {
-                    return ItemStack.EMPTY;
+                    return ModifiableItemStack.EMPTY;
                 }
             } else if (slotID >= 36 && slotID < 45) {
                 if (!this.moveItemStackTo(toMove, 9, 36, false)) {
-                    return ItemStack.EMPTY;
+                    return ModifiableItemStack.EMPTY;
                 }
             } else if (!this.moveItemStackTo(toMove, 9, 45, false)) {
-                return ItemStack.EMPTY;
+                return ModifiableItemStack.EMPTY;
             }
 
             if (toMove.isEmpty()) {
-                slot.set(ItemStack.EMPTY);
+                slot.set(ModifiableItemStack.EMPTY);
             }
 
             if (toMove.getAmount() == original.getAmount()) {
-                return ItemStack.EMPTY;
+                return ModifiableItemStack.EMPTY;
             }
         }
 
@@ -255,7 +251,7 @@ public class Inventory extends AbstractContainerMenu {
     }
 
     @Override
-    public boolean canTakeItemForPickAll(ItemStack p_38908_, Slot p_38909_) {
+    public boolean canTakeItemForPickAll(ModifiableItemStack p_38908_, Slot p_38909_) {
         return p_38909_.inventoryStorageSlot != 0; // Result slot
     }
 }

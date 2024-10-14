@@ -4,8 +4,8 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.play.ClientSteerVehiclePacket;
 
 @CheckData(name = "BadPacketsJ")
 public class BadPacketsJ extends Check implements PacketCheck {
@@ -14,8 +14,8 @@ public class BadPacketsJ extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
-        if (event.getPacketType() == PacketType.Play.Client.STEER_VEHICLE) {
+    public void onPacketReceive(PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientSteerVehiclePacket) {
             if (!player.compensatedEntities.getSelf().inVehicle()) {
                 if (flagAndAlert() && shouldModifyPackets()) {
                     event.setCancelled(true);

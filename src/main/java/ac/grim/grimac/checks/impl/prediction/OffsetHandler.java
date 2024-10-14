@@ -1,13 +1,11 @@
 package ac.grim.grimac.checks.impl.prediction;
 
 import ac.grim.grimac.api.config.ConfigManager;
-import ac.grim.grimac.api.events.CompletePredictionEvent;
 import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PostPredictionCheck;
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.anticheat.update.PredictionComplete;
-import org.bukkit.Bukkit;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -34,10 +32,10 @@ public class OffsetHandler extends Check implements PostPredictionCheck {
 
         if (!predictionComplete.isChecked()) return;
 
-        CompletePredictionEvent completePredictionEvent = new CompletePredictionEvent(getPlayer(), this, predictionComplete.getOffset());
-        Bukkit.getPluginManager().callEvent(completePredictionEvent);
-
-        if (completePredictionEvent.isCancelled()) return;
+        // todo minestom another event
+//        CompletePredictionEvent completePredictionEvent = new CompletePredictionEvent(getPlayer(), this, predictionComplete.getOffset());
+//        Bukkit.getPluginManager().callEvent(completePredictionEvent);
+//        if (completePredictionEvent.isCancelled()) return;
 
         // Short circuit out flag call
         if ((offset >= threshold || offset >= immediateSetbackThreshold) && flag()) {

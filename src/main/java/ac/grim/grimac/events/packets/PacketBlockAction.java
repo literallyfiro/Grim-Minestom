@@ -3,14 +3,14 @@ package ac.grim.grimac.events.packets;
 import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.data.ShulkerData;
+import ac.grim.grimac.utils.minestom.EventPriority;
+import ac.grim.grimac.utils.minestom.MinestomWrappedBlockState;
 import ac.grim.grimac.utils.nmsutil.Materials;
-import com.github.retrooper.packetevents.event.PacketListenerAbstract;
-import com.github.retrooper.packetevents.event.PacketListenerPriority;
-import com.github.retrooper.packetevents.event.PacketSendEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.world.states.WrappedBlockState;
-import com.github.retrooper.packetevents.util.Vector3i;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBlockAction;
+import ac.grim.grimac.utils.vector.Vector3i;
+import net.minestom.server.event.Event;
+import net.minestom.server.event.EventNode;
+import net.minestom.server.event.player.PlayerPacketOutEvent;
+import net.minestom.server.network.packet.server.play.BlockActionPacket;
 
 // If a player doesn't get this packet, then they don't know the shulker box is currently opened
 // Meaning if a player enters a chunk with an opened shulker box, they see the shulker box as closed.
@@ -18,27 +18,34 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBl
 // Exempting the player on shulker boxes is an option... but then you have people creating PvP arenas
 // on shulker boxes to get high lenience.
 //
-public class PacketBlockAction extends PacketListenerAbstract {
-    public PacketBlockAction() {
-        super(PacketListenerPriority.HIGH);
+public class PacketBlockAction {
+//    public PacketBlockAction() {
+//        super(PacketListenerPriority.HIGH);
+//    }
+
+    public PacketBlockAction(EventNode<Event> globalNode) {
+        EventNode<Event> node = EventNode.all("packet-block-action");
+        node.setPriority(EventPriority.HIGH.ordinal());
+
+        node.addListener(PlayerPacketOutEvent.class, this::onPacketSend);
+
+        globalNode.addChild(node);
     }
 
-    @Override
-    public void onPacketSend(PacketSendEvent event) {
-        if (event.getPacketType() == PacketType.Play.Server.BLOCK_ACTION) {
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+    public void onPacketSend(PlayerPacketOutEvent event) {
+        if (event.getPacket() instanceof BlockActionPacket blockAction) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
 
-            WrapperPlayServerBlockAction blockAction = new WrapperPlayServerBlockAction(event);
-            Vector3i blockPos = blockAction.getBlockPosition();
+            Vector3i blockPos = new Vector3i(blockAction.blockPosition());
 
             player.latencyUtils.addRealTimeTask(player.lastTransactionSent.get(), () -> {
                 // The client ignores the state sent to the client.
-                WrappedBlockState existing = player.compensatedWorld.getWrappedBlockStateAt(blockPos);
+                MinestomWrappedBlockState existing = player.compensatedWorld.getWrappedBlockStateAt(blockPos);
                 if (Materials.isShulker(existing.getType())) {
                     // Param is the number of viewers of the shulker box.
                     // Hashset with .equals() set to be position
-                    if (blockAction.getActionData() >= 1) {
+                    if (blockAction.actionParam() >= 1) {
                         ShulkerData data = new ShulkerData(blockPos, player.lastTransactionSent.get(), false);
                         player.compensatedWorld.openShulkerBoxes.remove(data);
                         player.compensatedWorld.openShulkerBoxes.add(data);

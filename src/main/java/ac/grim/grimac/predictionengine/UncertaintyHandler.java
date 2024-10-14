@@ -7,13 +7,13 @@ import ac.grim.grimac.utils.data.VectorData;
 import ac.grim.grimac.utils.data.packetentity.PacketEntity;
 import ac.grim.grimac.utils.data.packetentity.PacketEntityRideable;
 import ac.grim.grimac.utils.data.packetentity.PacketEntityStrider;
+import ac.grim.grimac.utils.vector.MutableVector;
 import ac.grim.grimac.utils.lists.EvictingQueue;
 import ac.grim.grimac.utils.nmsutil.BoundingBoxSize;
 import ac.grim.grimac.utils.nmsutil.ReachUtils;
-import com.github.retrooper.packetevents.protocol.attribute.Attributes;
-import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
-import com.github.retrooper.packetevents.protocol.world.BlockFace;
-import org.bukkit.util.Vector;
+import net.minestom.server.entity.EntityType;
+import net.minestom.server.entity.attribute.Attribute;
+import net.minestom.server.instance.block.BlockFace;
 
 import java.util.*;
 
@@ -139,7 +139,7 @@ public class UncertaintyHandler {
             if (entity == null) continue;
 
             SimpleCollisionBox entityBox = entity.getPossibleCollisionBoxes();
-            final float scale = (float) entity.getAttributeValue(Attributes.GENERIC_SCALE);
+            final float scale = (float) entity.getAttributeValue(Attribute.GENERIC_SCALE);
             float width = BoundingBoxSize.getWidth(player, entity) * scale;
             float height = BoundingBoxSize.getHeight(player, entity) * scale;
 
@@ -147,15 +147,15 @@ public class UncertaintyHandler {
             entityBox.maxY -= height;
             entityBox.expand(-width / 2, 0, -width / 2);
 
-            Vector maxLocation = new Vector(entityBox.maxX, entityBox.maxY, entityBox.maxZ);
-            Vector minLocation = new Vector(entityBox.minX, entityBox.minY, entityBox.minZ);
+            MutableVector maxLocation = new MutableVector(entityBox.maxX, entityBox.maxY, entityBox.maxZ);
+            MutableVector minLocation = new MutableVector(entityBox.minX, entityBox.minY, entityBox.minZ);
 
-            Vector diff = minLocation.subtract(new Vector(player.lastX, player.lastY + 0.8 * 1.8, player.lastZ)).multiply(0.1);
+            MutableVector diff = minLocation.subtract(new MutableVector(player.lastX, player.lastY + 0.8 * 1.8, player.lastZ)).multiply(0.1);
             fishingRodPullBox.minX = Math.min(0, diff.getX());
             fishingRodPullBox.minY = Math.min(0, diff.getY());
             fishingRodPullBox.minZ = Math.min(0, diff.getZ());
 
-            diff = maxLocation.subtract(new Vector(player.lastX, player.lastY + 0.8 * 1.8, player.lastZ)).multiply(0.1);
+            diff = maxLocation.subtract(new MutableVector(player.lastX, player.lastY + 0.8 * 1.8, player.lastZ)).multiply(0.1);
             fishingRodPullBox.maxX = Math.max(0, diff.getX());
             fishingRodPullBox.maxY = Math.max(0, diff.getY());
             fishingRodPullBox.maxZ = Math.max(0, diff.getZ());
@@ -170,8 +170,8 @@ public class UncertaintyHandler {
 
         fireworksBox = new SimpleCollisionBox();
 
-        Vector currentLook = ReachUtils.getLook(player, player.xRot, player.yRot);
-        Vector lastLook = ReachUtils.getLook(player, player.lastXRot, player.lastYRot);
+        MutableVector currentLook = ReachUtils.getLook(player, player.xRot, player.yRot);
+        MutableVector lastLook = ReachUtils.getLook(player, player.lastXRot, player.lastYRot);
 
         double antiTickSkipping = player.isPointThree() ? 0 : 0.05; // With 0.03, let that handle tick skipping
 
@@ -327,7 +327,7 @@ public class UncertaintyHandler {
     private boolean regularHardCollision(SimpleCollisionBox expandedBB) {
         final PacketEntity riding = player.compensatedEntities.getSelf().getRiding();
         for (PacketEntity entity : player.compensatedEntities.entityMap.values()) {
-            if ((entity.isBoat() || entity.getType() == EntityTypes.SHULKER) && entity != riding
+            if ((entity.isBoat() || entity.getType() == EntityType.SHULKER) && entity != riding
                     && entity.getPossibleCollisionBoxes().isIntersected(expandedBB)) {
                 return true;
             }
@@ -341,7 +341,7 @@ public class UncertaintyHandler {
         if (player.compensatedEntities.getSelf().getRiding() instanceof PacketEntityStrider) {
             for (Map.Entry<Integer, PacketEntity> entityPair : player.compensatedEntities.entityMap.int2ObjectEntrySet()) {
                 PacketEntity entity = entityPair.getValue();
-                if (entity.getType() == EntityTypes.STRIDER && entity != player.compensatedEntities.getSelf().getRiding() && !entity.hasPassenger(entityPair.getValue())
+                if (entity.getType() == EntityType.STRIDER && entity != player.compensatedEntities.getSelf().getRiding() && !entity.hasPassenger(entityPair.getValue())
                         && entity.getPossibleCollisionBoxes().isIntersected(expandedBB)) {
                     return true;
                 }

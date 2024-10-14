@@ -1,19 +1,19 @@
 package ac.grim.grimac.utils.nmsutil;
 
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.protocol.attribute.Attributes;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.potion.PotionTypes;
-import com.github.retrooper.packetevents.util.Vector3d;
-import org.bukkit.util.Vector;
+import ac.grim.grimac.utils.ClientVersion;
+import ac.grim.grimac.utils.vector.MutableVector;
+import ac.grim.grimac.utils.vector.Vector3d;
+import net.minestom.server.entity.attribute.Attribute;
+import net.minestom.server.potion.PotionEffect;
 
 import java.util.OptionalInt;
 
 public class JumpPower {
-    public static void jumpFromGround(GrimPlayer player, Vector vector) {
+    public static void jumpFromGround(GrimPlayer player, MutableVector vector) {
         float jumpPower = getJumpPower(player);
 
-        final OptionalInt jumpBoost = player.compensatedEntities.getPotionLevelForPlayer(PotionTypes.JUMP_BOOST);
+        final OptionalInt jumpBoost = player.compensatedEntities.getPotionLevelForPlayer(PotionEffect.JUMP_BOOST);
         if (jumpBoost.isPresent()) {
             jumpPower += 0.1f * (jumpBoost.getAsInt() + 1);
         }
@@ -24,12 +24,12 @@ public class JumpPower {
 
         if (player.isSprinting) {
             float radRotation = player.xRot * ((float) Math.PI / 180F);
-            vector.add(new Vector(-player.trigHandler.sin(radRotation) * 0.2f, 0.0, player.trigHandler.cos(radRotation) * 0.2f));
+            vector.add(new MutableVector(-player.trigHandler.sin(radRotation) * 0.2f, 0.0, player.trigHandler.cos(radRotation) * 0.2f));
         }
     }
 
     public static float getJumpPower(GrimPlayer player) {
-        return (float) player.compensatedEntities.getSelf().getAttributeValue(Attributes.GENERIC_JUMP_STRENGTH) * getPlayerJumpFactor(player);
+        return (float) player.compensatedEntities.getSelf().getAttributeValue(Attribute.GENERIC_JUMP_STRENGTH) * getPlayerJumpFactor(player);
     }
 
     public static float getPlayerJumpFactor(GrimPlayer player) {

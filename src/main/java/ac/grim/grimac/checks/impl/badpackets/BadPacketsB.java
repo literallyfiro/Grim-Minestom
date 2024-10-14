@@ -4,9 +4,8 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientSteerVehicle;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.play.ClientSteerVehiclePacket;
 
 @CheckData(name = "BadPacketsB")
 public class BadPacketsB extends Check implements PacketCheck {
@@ -15,12 +14,10 @@ public class BadPacketsB extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketReceive(final PacketReceiveEvent event) {
-        if (event.getPacketType() == PacketType.Play.Client.STEER_VEHICLE) {
-            final WrapperPlayClientSteerVehicle packet = new WrapperPlayClientSteerVehicle(event);
-
-            if (Math.abs(packet.getForward()) > 0.98f || Math.abs(packet.getSideways()) > 0.98f) {
-                if (flagAndAlert("forwards=" + packet.getForward() + ", sideways=" + packet.getSideways()) && shouldModifyPackets()) {
+    public void onPacketReceive(final PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientSteerVehiclePacket packet) {
+            if (Math.abs(packet.forward()) > 0.98f || Math.abs(packet.sideways()) > 0.98f) {
+                if (flagAndAlert("forwards=" + packet.forward() + ", sideways=" + packet.sideways()) && shouldModifyPackets()) {
                     event.setCancelled(true);
                     player.onPacketCancel();
                 }

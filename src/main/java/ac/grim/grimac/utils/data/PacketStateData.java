@@ -1,8 +1,8 @@
 package ac.grim.grimac.utils.data;
 
-import com.github.retrooper.packetevents.protocol.player.InteractionHand;
-import com.github.retrooper.packetevents.util.Vector3d;
+import ac.grim.grimac.utils.vector.Vector3d;
 import lombok.Getter;
+import net.minestom.server.entity.Player;
 
 // This is to keep all the packet data out of the main player class
 // Helps clean up the player class and makes devs aware they are sync'd to the netty thread
@@ -12,7 +12,7 @@ public class PacketStateData {
     public boolean cancelDuplicatePacket, lastPacketWasOnePointSeventeenDuplicate = false;
     public boolean lastTransactionPacketWasValid = false;
     public int lastSlotSelected;
-    public InteractionHand eatingHand = InteractionHand.MAIN_HAND;
+    public Player.Hand eatingHand = Player.Hand.MAIN;
     public long lastRiptide = 0;
     public boolean tryingToRiptide = false;
     @Getter

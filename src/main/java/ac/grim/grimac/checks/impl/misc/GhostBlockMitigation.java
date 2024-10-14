@@ -4,10 +4,10 @@ import ac.grim.grimac.api.config.ConfigManager;
 import ac.grim.grimac.checks.type.BlockPlaceCheck;
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.anticheat.update.BlockPlace;
-import com.github.retrooper.packetevents.util.Vector3i;
-import org.bukkit.Material;
-import org.bukkit.World;
-import org.bukkit.block.Block;
+import ac.grim.grimac.utils.vector.Vector3i;
+import net.minestom.server.instance.Instance;
+import net.minestom.server.instance.block.Block;
+import net.minestom.server.item.Material;
 
 public class GhostBlockMitigation extends BlockPlaceCheck {
 
@@ -22,7 +22,7 @@ public class GhostBlockMitigation extends BlockPlaceCheck {
     public void onBlockPlace(final BlockPlace place) {
         if (allow || player.bukkitPlayer == null) return;
 
-        World world = player.bukkitPlayer.getWorld();
+        Instance world = player.bukkitPlayer.getInstance();
         Vector3i pos = place.getPlacedBlockPos();
         Vector3i posAgainst = place.getPlacedAgainstBlockLocation();
 
@@ -50,8 +50,8 @@ public class GhostBlockMitigation extends BlockPlaceCheck {
                             continue;
                         }
 
-                        Block type = world.getBlockAt(i, j, k);
-                        if (type.getType() != Material.AIR) {
+                        Block type = world.getBlock(i, j, k);
+                        if (type.registry().material() != Material.AIR) {
                             return;
                         }
                     }

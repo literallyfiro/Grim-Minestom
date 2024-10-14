@@ -1,6 +1,5 @@
 package ac.grim.grimac.manager;
 
-import ac.grim.grimac.GrimAC;
 import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.api.common.BasicReloadable;
 import ac.grim.grimac.api.config.ConfigManager;
@@ -24,15 +23,16 @@ public class ConfigManagerImpl implements ConfigManager, BasicReloadable {
         return this;
     }
 
+    private final File dataFolder;
     private final DynamicConfig config;
     @Getter
-    private final File configFile = new File(GrimAPI.INSTANCE.getPlugin().getDataFolder(), "config.yml");
+    private final File configFile;
     @Getter
-    private final File messagesFile = new File(GrimAPI.INSTANCE.getPlugin().getDataFolder(), "messages.yml");
+    private final File messagesFile;
     @Getter
-    private final File discordFile = new File(GrimAPI.INSTANCE.getPlugin().getDataFolder(), "discord.yml");
+    private final File discordFile;
     @Getter
-    private final File punishFile = new File(GrimAPI.INSTANCE.getPlugin().getDataFolder(), "punishments.yml");
+    private final File punishFile;
     @Getter
     private boolean ignoreDuplicatePacketRotation = false;
 
@@ -41,15 +41,24 @@ public class ConfigManagerImpl implements ConfigManager, BasicReloadable {
 
     private final List<Pattern> ignoredClientPatterns = new ArrayList<>();
 
-    public ConfigManagerImpl() {
+    public ConfigManagerImpl(File dataFolder) {
+        this.dataFolder = dataFolder;
         upgrade();
         // load config
-        GrimAPI.INSTANCE.getPlugin().getDataFolder().mkdirs();
+        dataFolder.mkdirs();
+
+        configFile = new File(dataFolder, "config.yml");
+        messagesFile = new File(dataFolder, "messages.yml");
+        discordFile = new File(dataFolder, "discord.yml");
+        punishFile = new File(dataFolder, "punishments.yml");
+
         config = new DynamicConfig();
-        config.addSource(GrimAC.class, "config", getConfigFile());
-        config.addSource(GrimAC.class, "messages", getMessagesFile());
-        config.addSource(GrimAC.class, "discord", getDiscordFile());
-        config.addSource(GrimAC.class, "punishments", getPunishFile());
+        config.addSource(GrimAPI.class, "config", getConfigFile());
+        config.addSource(GrimAPI.class, "messages", getMessagesFile());
+        config.addSource(GrimAPI.class, "discord", getDiscordFile());
+        config.addSource(GrimAPI.class, "punishments", getPunishFile());
+
+
 
         reload();
     }
@@ -108,7 +117,7 @@ public class ConfigManagerImpl implements ConfigManager, BasicReloadable {
     }
 
     private void upgrade() {
-        File config = new File(GrimAPI.INSTANCE.getPlugin().getDataFolder(), "config.yml");
+        File config = new File(dataFolder, "config.yml");
         if (config.exists()) {
             try {
                 String configString = new String(Files.readAllBytes(config.toPath()));
@@ -168,7 +177,7 @@ public class ConfigManagerImpl implements ConfigManager, BasicReloadable {
 
     private void removeLegacyTwoPointOne(File config) throws IOException {
         // If config doesn't have config-version, it's a legacy config
-        Files.move(config.toPath(), new File(GrimAPI.INSTANCE.getPlugin().getDataFolder(), "config-2.1.old.yml").toPath());
+        Files.move(config.toPath(), new File(dataFolder, "config-2.1.old.yml").toPath());
     }
 
     private void addMaxPing(File config, String configString) throws IOException {
@@ -181,7 +190,7 @@ public class ConfigManagerImpl implements ConfigManager, BasicReloadable {
 
     // TODO: Write conversion for this... I'm having issues with windows new lines
     private void addMissingPunishments() {
-        File config = new File(GrimAPI.INSTANCE.getPlugin().getDataFolder(), "punishments.yml");
+        File config = new File(dataFolder, "punishments.yml");
         String configString;
         if (config.exists()) {
             try {
@@ -221,7 +230,7 @@ public class ConfigManagerImpl implements ConfigManager, BasicReloadable {
         } catch (IOException ignored) {
         }
 
-        File punishConfig = new File(GrimAPI.INSTANCE.getPlugin().getDataFolder(), "punishments.yml");
+        File punishConfig = new File(dataFolder, "punishments.yml");
         String punishConfigString;
         if (punishConfig.exists()) {
             try {
@@ -234,7 +243,7 @@ public class ConfigManagerImpl implements ConfigManager, BasicReloadable {
     }
 
     private void addBaritoneCheck() {
-        File config = new File(GrimAPI.INSTANCE.getPlugin().getDataFolder(), "punishments.yml");
+        File config = new File(dataFolder, "punishments.yml");
         String configString;
         if (config.exists()) {
             try {
@@ -251,7 +260,7 @@ public class ConfigManagerImpl implements ConfigManager, BasicReloadable {
         configString = configString.replace("threshold: 0.00001", "threshold: 0.001"); // 1e-6 -> 1e-4 antikb flag
         Files.write(config.toPath(), configString.getBytes());
 
-        File discordFile = new File(GrimAPI.INSTANCE.getPlugin().getDataFolder(), "discord.yml");
+        File discordFile = new File(dataFolder, "discord.yml");
 
         if (discordFile.exists()) {
             try {
@@ -282,7 +291,7 @@ public class ConfigManagerImpl implements ConfigManager, BasicReloadable {
                 "  print-to-console: false\n";
         Files.write(config.toPath(), configString.getBytes());
 
-        File messageFile = new File(GrimAPI.INSTANCE.getPlugin().getDataFolder(), "messages.yml");
+        File messageFile = new File(dataFolder, "messages.yml");
         if (messageFile.exists()) {
             try {
                 String messagesString = new String(Files.readAllBytes(messageFile.toPath()));
