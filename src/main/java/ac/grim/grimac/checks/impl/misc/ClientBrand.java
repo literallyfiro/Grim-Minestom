@@ -5,11 +5,10 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.impl.exploit.ExploitA;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPluginMessage;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.entity.Player;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.common.ClientPluginMessagePacket;
 
 public class ClientBrand extends Check implements PacketCheck {
     String brand = "vanilla";
@@ -20,11 +19,10 @@ public class ClientBrand extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketReceive(final PacketReceiveEvent event) {
-        if (event.getPacketType() == PacketType.Play.Client.PLUGIN_MESSAGE) {
-            WrapperPlayClientPluginMessage packet = new WrapperPlayClientPluginMessage(event);
-            String channelName = packet.getChannelName();
-            handle(channelName, packet.getData());
+    public void onPacketReceive(final PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientPluginMessagePacket packet) {
+            String channelName = packet.channel();
+            handle(channelName, packet.data());
         }
     }
 
@@ -43,9 +41,9 @@ public class ClientBrand extends Check implements PacketCheck {
                     String message = GrimAPI.INSTANCE.getConfigManager().getConfig().getStringElse("client-brand-format", "%prefix% &f%player% joined using %brand%");
                     message = GrimAPI.INSTANCE.getExternalAPI().replaceVariables(getPlayer(), message, true);
                     // sendMessage is async safe while broadcast isn't due to adventure
-                    for (Player player : Bukkit.getOnlinePlayers()) {
-                        if (player.hasPermission("grim.brand")) {
-                            player.sendMessage(message);
+                    for (Player onlinePlayer : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
+                        if (onlinePlayer.hasPermission("grim.brand")) {
+                            onlinePlayer.sendMessage(message);
                         }
                     }
                 }

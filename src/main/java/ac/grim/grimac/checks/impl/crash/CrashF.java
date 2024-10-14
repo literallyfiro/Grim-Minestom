@@ -4,9 +4,8 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientClickWindow;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.play.ClientClickWindowPacket;
 
 @CheckData(name = "CrashF")
 public class CrashF extends Check implements PacketCheck {
@@ -16,13 +15,12 @@ public class CrashF extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketReceive(final PacketReceiveEvent event) {
-        if (event.getPacketType() == PacketType.Play.Client.CLICK_WINDOW) {
-            WrapperPlayClientClickWindow click = new WrapperPlayClientClickWindow(event);
-            int clickType = click.getWindowClickType().ordinal();
-            int button = click.getButton();
-            int windowId = click.getWindowId();
-            int slot = click.getSlot();
+    public void onPacketReceive(final PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientClickWindowPacket click) {
+            int clickType = click.clickType().ordinal();
+            int button = click.button();
+            int windowId = click.windowId();
+            int slot = click.slot();
 
             if ((clickType == 1 || clickType == 2) && windowId >= 0 && button < 0) {
                 if (flagAndAlert("clickType=" + clickType + " button=" + button)) {

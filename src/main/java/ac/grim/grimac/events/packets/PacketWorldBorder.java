@@ -4,9 +4,11 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.math.GrimMath;
-import com.github.retrooper.packetevents.event.PacketSendEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.wrapper.play.server.*;
+import net.minestom.server.event.player.PlayerPacketOutEvent;
+import net.minestom.server.network.packet.server.play.InitializeWorldBorderPacket;
+import net.minestom.server.network.packet.server.play.WorldBorderCenterPacket;
+import net.minestom.server.network.packet.server.play.WorldBorderLerpSizePacket;
+import net.minestom.server.network.packet.server.play.WorldBorderSizePacket;
 
 public class PacketWorldBorder extends Check implements PacketCheck {
     double centerX;
@@ -35,48 +37,44 @@ public class PacketWorldBorder extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketSend(PacketSendEvent event) {
-        if (event.getPacketType() == PacketType.Play.Server.WORLD_BORDER) {
-            WrapperPlayServerWorldBorder packet = new WrapperPlayServerWorldBorder(event);
-
+    public void onPacketSend(PlayerPacketOutEvent event) {
+//        if (event.getPacket() instanceof WORLD_BORDERPacket) {
+//            WrapperPlayServerWorldBorder packet = new WrapperPlayServerWorldBorder(event);
+//
+//            player.sendTransaction();
+//            // Names are misleading, it's diameter not radius.
+//            if (packet.getAction() == WrapperPlayServerWorldBorder.WorldBorderAction.SET_SIZE) {
+//                setSize(packet.getRadius());
+//            } else if (packet.getAction() == WrapperPlayServerWorldBorder.WorldBorderAction.LERP_SIZE) {
+//                setLerp(packet.getOldRadius(), packet.getNewRadius(), packet.getSpeed());
+//            } else if (packet.getAction() == WrapperPlayServerWorldBorder.WorldBorderAction.SET_CENTER) {
+//                setCenter(packet.getCenterX(), packet.getCenterZ());
+//            } else if (packet.getAction() == WrapperPlayServerWorldBorder.WorldBorderAction.INITIALIZE) {
+//                setCenter(packet.getCenterX(), packet.getCenterZ());
+//                setLerp(packet.getOldRadius(), packet.getNewRadius(), packet.getSpeed());
+//                setAbsoluteMaxSize(packet.getPortalTeleportBoundary());
+//            }
+//        }
+        if (event.getPacket() instanceof InitializeWorldBorderPacket border) {
             player.sendTransaction();
-            // Names are misleading, it's diameter not radius.
-            if (packet.getAction() == WrapperPlayServerWorldBorder.WorldBorderAction.SET_SIZE) {
-                setSize(packet.getRadius());
-            } else if (packet.getAction() == WrapperPlayServerWorldBorder.WorldBorderAction.LERP_SIZE) {
-                setLerp(packet.getOldRadius(), packet.getNewRadius(), packet.getSpeed());
-            } else if (packet.getAction() == WrapperPlayServerWorldBorder.WorldBorderAction.SET_CENTER) {
-                setCenter(packet.getCenterX(), packet.getCenterZ());
-            } else if (packet.getAction() == WrapperPlayServerWorldBorder.WorldBorderAction.INITIALIZE) {
-                setCenter(packet.getCenterX(), packet.getCenterZ());
-                setLerp(packet.getOldRadius(), packet.getNewRadius(), packet.getSpeed());
-                setAbsoluteMaxSize(packet.getPortalTeleportBoundary());
-            }
-        }
-        if (event.getPacketType() == PacketType.Play.Server.INITIALIZE_WORLD_BORDER) {
-            player.sendTransaction();
-            WrapperPlayServerInitializeWorldBorder border = new WrapperPlayServerInitializeWorldBorder(event);
-            setCenter(border.getX(), border.getZ());
-            setLerp(border.getOldDiameter(), border.getNewDiameter(), border.getSpeed());
-            setAbsoluteMaxSize(border.getPortalTeleportBoundary());
-        }
-
-        if (event.getPacketType() == PacketType.Play.Server.WORLD_BORDER_CENTER) {
-            player.sendTransaction();
-            WrapperPlayServerWorldBorderCenter center = new WrapperPlayServerWorldBorderCenter(event);
-            setCenter(center.getX(), center.getZ());
+            setCenter(border.x(), border.z());
+            setLerp(border.oldDiameter(), border.newDiameter(), border.speed());
+            setAbsoluteMaxSize(border.portalTeleportBoundary());
         }
 
-        if (event.getPacketType() == PacketType.Play.Server.WORLD_BORDER_SIZE) {
+        if (event.getPacket() instanceof WorldBorderCenterPacket center) {
             player.sendTransaction();
-            WrapperPlayServerWorldBorderSize size = new WrapperPlayServerWorldBorderSize(event);
-            setSize(size.getDiameter());
+            setCenter(center.x(), center.z());
         }
 
-        if (event.getPacketType() == PacketType.Play.Server.WORLD_BORDER_LERP_SIZE) {
+        if (event.getPacket() instanceof WorldBorderSizePacket size) {
             player.sendTransaction();
-            WrapperPlayWorldBorderLerpSize size = new WrapperPlayWorldBorderLerpSize(event);
-            setLerp(size.getOldDiameter(), size.getNewDiameter(), size.getSpeed());
+            setSize(size.diameter());
+        }
+
+        if (event.getPacket() instanceof WorldBorderLerpSizePacket size) {
+            player.sendTransaction();
+            setLerp(size.oldDiameter(), size.newDiameter(), size.speed());
         }
     }
 

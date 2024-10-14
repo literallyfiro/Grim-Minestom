@@ -4,10 +4,9 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.item.ItemStack;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
+import ac.grim.grimac.utils.inventory.ModifiableItemStack;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.play.ClientInteractEntityPacket;
 
 @CheckData(name = "BadPacketsV", experimental = true)
 public class BadPacketsV extends Check implements PacketCheck {
@@ -16,13 +15,12 @@ public class BadPacketsV extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
-        if (event.getPacketType() == PacketType.Play.Client.INTERACT_ENTITY) {
-            WrapperPlayClientInteractEntity interactEntity = new WrapperPlayClientInteractEntity(event);
-            if (interactEntity.getAction() != WrapperPlayClientInteractEntity.InteractAction.ATTACK) return;
+    public void onPacketReceive(PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientInteractEntityPacket interactEntity) {
+            if (!(interactEntity.type() instanceof ClientInteractEntityPacket.Attack)) return;
             if (!player.packetStateData.isSlowedByUsingItem()) return;
-            ItemStack itemInUse = player.getInventory().getItemInHand(player.packetStateData.eatingHand);
-            if (flagAndAlert("UseItem=" + itemInUse.getType().getName().getKey()) && shouldModifyPackets()) {
+            ModifiableItemStack itemInUse = player.getInventory().getItemInHand(player.packetStateData.eatingHand);
+            if (flagAndAlert("UseItem=" + itemInUse.getType().namespace().key().asString()) && shouldModifyPackets()) {
                 event.setCancelled(true);
                 player.onPacketCancel();
             }

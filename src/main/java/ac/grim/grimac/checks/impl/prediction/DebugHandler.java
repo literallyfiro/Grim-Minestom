@@ -7,9 +7,10 @@ import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.anticheat.LogUtil;
 import ac.grim.grimac.utils.anticheat.update.PredictionComplete;
 import ac.grim.grimac.utils.lists.EvictingQueue;
-import org.bukkit.ChatColor;
-import org.bukkit.entity.Player;
-import org.bukkit.util.Vector;
+import ac.grim.grimac.utils.vector.MutableVector;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
+import net.minestom.server.entity.Player;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -43,24 +44,24 @@ public class DebugHandler extends Check implements PostPredictionCheck {
         // This is pointless debug!
         if (player.predictedVelocity.vector.lengthSquared() == 0 && offset == 0) return;
 
-        ChatColor color = pickColor(offset, offset);
+        TextColor color = pickColor(offset, offset);
 
-        Vector predicted = player.predictedVelocity.vector;
-        Vector actually = player.actualMovement;
+        MutableVector predicted = player.predictedVelocity.vector;
+        MutableVector actually = player.actualMovement;
 
-        ChatColor xColor = pickColor(Math.abs(predicted.getX() - actually.getX()), offset);
-        ChatColor yColor = pickColor(Math.abs(predicted.getY() - actually.getY()), offset);
-        ChatColor zColor = pickColor(Math.abs(predicted.getZ() - actually.getZ()), offset);
+        TextColor xColor = pickColor(Math.abs(predicted.getX() - actually.getX()), offset);
+        TextColor yColor = pickColor(Math.abs(predicted.getY() - actually.getY()), offset);
+        TextColor zColor = pickColor(Math.abs(predicted.getZ() - actually.getZ()), offset);
 
         String p = color + "P: " + xColor + predicted.getX() + " " + yColor + predicted.getY() + " " + zColor + predicted.getZ();
         String a = color + "A: " + xColor + actually.getX() + " " + yColor + actually.getY() + " " + zColor + actually.getZ();
         String canSkipTick = (player.couldSkipTick + " ").substring(0, 1);
         String actualMovementSkip = (player.skippedTickInActualMovement + " ").substring(0, 1);
-        String o = ChatColor.GRAY + "" + canSkipTick + "→0.03→" + actualMovementSkip + color + " O: " + offset;
+        String o = NamedTextColor.GRAY + canSkipTick + "→0.03→" + actualMovementSkip + color + " O: " + offset;
 
         String prefix = player.bukkitPlayer == null ? "null" : player.bukkitPlayer.getName() + " ";
 
-        boolean thisFlag = color != ChatColor.GRAY && color != ChatColor.GREEN;
+        boolean thisFlag = color != NamedTextColor.GRAY && color != NamedTextColor.GREEN;
         if (enabledFlags) {
             // If the last movement was a flag, don't duplicate messages to the player
             if (lastMovementIsFlag) {
@@ -78,9 +79,9 @@ public class DebugHandler extends Check implements PostPredictionCheck {
 
         if (thisFlag) {
             for (int i = 0; i < this.predicted.size(); i++) {
-                player.user.sendMessage(this.predicted.get(i));
-                player.user.sendMessage(this.actually.get(i));
-                player.user.sendMessage(this.offset.get(i));
+                player.bukkitPlayer.sendMessage(this.predicted.get(i));
+                player.bukkitPlayer.sendMessage(this.actually.get(i));
+                player.bukkitPlayer.sendMessage(this.offset.get(i));
             }
         }
 
@@ -101,16 +102,16 @@ public class DebugHandler extends Check implements PostPredictionCheck {
         }
     }
 
-    private ChatColor pickColor(double offset, double totalOffset) {
-        if (player.getSetbackTeleportUtil().blockOffsets) return ChatColor.GRAY;
+    private TextColor pickColor(double offset, double totalOffset) {
+        if (player.getSetbackTeleportUtil().blockOffsets) return NamedTextColor.GRAY;
         if (offset <= 0 || totalOffset <= 0) { // If exempt don't bother coloring, so I stop getting false false reports
-            return ChatColor.GRAY;
+            return NamedTextColor.GRAY;
         } else if (offset < 0.0001) {
-            return ChatColor.GREEN;
+            return NamedTextColor.GREEN;
         } else if (offset < 0.01) {
-            return ChatColor.YELLOW;
+            return NamedTextColor.YELLOW;
         } else {
-            return ChatColor.RED;
+            return NamedTextColor.RED;
         }
     }
 

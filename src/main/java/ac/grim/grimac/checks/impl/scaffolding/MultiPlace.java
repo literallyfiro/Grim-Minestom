@@ -3,15 +3,14 @@ package ac.grim.grimac.checks.impl.scaffolding;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.BlockPlaceCheck;
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
+import ac.grim.grimac.utils.WrapperPlayClientPlayerFlying;
 import ac.grim.grimac.utils.anticheat.MessageUtil;
 import ac.grim.grimac.utils.anticheat.update.BlockPlace;
 import ac.grim.grimac.utils.anticheat.update.PredictionComplete;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.world.BlockFace;
-import com.github.retrooper.packetevents.util.Vector3f;
-import com.github.retrooper.packetevents.util.Vector3i;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
+import net.minestom.server.coordinate.Point;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import ac.grim.grimac.utils.minestom.BlockFace;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,14 +25,14 @@ public class MultiPlace extends BlockPlaceCheck {
 
     private boolean hasPlaced;
     private BlockFace lastFace;
-    private Vector3f lastCursor;
-    private Vector3i lastPos;
+    private Point lastCursor;
+    private Point lastPos;
 
     @Override
     public void onBlockPlace(final BlockPlace place) {
         final BlockFace face = place.getDirection();
-        final Vector3f cursor = place.getCursor();
-        final Vector3i pos = place.getPlacedAgainstBlockLocation();
+        final Point cursor = place.getCursor();
+        final Point pos = place.getPlacedAgainstBlockLocation();
 
         if (hasPlaced && (face != lastFace || !cursor.equals(lastCursor) || !pos.equals(lastPos))) {
             final String verbose = "face=" + face + ", lastFace=" + lastFace
@@ -55,8 +54,8 @@ public class MultiPlace extends BlockPlaceCheck {
     }
 
     @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
-        if (WrapperPlayClientPlayerFlying.isFlying(event.getPacketType()) && !player.packetStateData.lastPacketWasTeleport && !player.packetStateData.lastPacketWasOnePointSeventeenDuplicate) {
+    public void onPacketReceive(PlayerPacketEvent event) {
+        if (WrapperPlayClientPlayerFlying.isFlying(event.getPacket()) && !player.packetStateData.lastPacketWasTeleport && !player.packetStateData.lastPacketWasOnePointSeventeenDuplicate) {
             hasPlaced = false;
         }
     }

@@ -4,12 +4,16 @@ import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.inventory.Inventory;
 import ac.grim.grimac.utils.inventory.InventoryStorage;
-import com.github.retrooper.packetevents.protocol.item.ItemStack;
-import io.github.retrooper.packetevents.util.SpigotConversionUtil;
-import io.github.retrooper.packetevents.util.folia.FoliaScheduler;
-import org.bukkit.inventory.InventoryView;
+import ac.grim.grimac.utils.inventory.ModifiableItemStack;
+import net.minestom.server.entity.GameMode;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -48,7 +52,9 @@ public class CorrectingPlayerInventoryStorage extends InventoryStorage {
     Map<Integer, Integer> pendingFinalizedSlot = new ConcurrentHashMap<>();
     // TODO: How the hell does creative mode work?
     private static final Set<String> SUPPORTED_INVENTORIES = new HashSet<>(
-            Arrays.asList("CHEST", "DISPENSER", "DROPPER", "PLAYER", "ENDER_CHEST", "SHULKER_BOX", "BARREL", "CRAFTING", "CREATIVE")
+//            Arrays.asList("CHEST", "DISPENSER", "DROPPER", "PLAYER", "ENDER_CHEST", "SHULKER_BOX", "BARREL", "CRAFTING", "CREATIVE")
+            Arrays.asList("CHEST_1_ROW", "CHEST_2_ROW", "CHEST_3_ROW", "CHEST_4_ROW", "CHEST_5_ROW",
+                    "CHEST_6_ROW", "WINDOW_3X3", "CRAFTER_3X3", "SHULKER_BOX", "CRAFTING")
     );
 
     public CorrectingPlayerInventoryStorage(GrimPlayer player, int size) {
@@ -73,7 +79,7 @@ public class CorrectingPlayerInventoryStorage extends InventoryStorage {
     // This is more meant for pre-1.17 clients, but mojang fucked up netcode AGAIN in 1.17, so
     // we must use this for 1.17 clients as well... at least you tried Mojang.
     @Override
-    public void setItem(int item, ItemStack stack) {
+    public void setItem(int item, ModifiableItemStack stack) {
         // If there is a more recent change to this one, don't override it
         Integer finalTransaction = serverIsCurrentlyProcessingThesePredictions.get(item);
 
@@ -88,26 +94,22 @@ public class CorrectingPlayerInventoryStorage extends InventoryStorage {
         super.setItem(item, stack);
     }
 
-    private void checkThatBukkitIsSynced(int slot) {
+    private void checkThatMinestomIsSynced(int slot) {
         // The player isn't fully logged in yet, don't bother checking
         if (player.bukkitPlayer == null) return;
         // We aren't tracking the player's inventory, so don't bother
         if (!player.getInventory().isPacketInventoryActive) return;
+        // The player is in creative mode, don't bother checking
+        // (minestom fix)
+        if (player.bukkitPlayer.getGameMode() == GameMode.CREATIVE) return;
 
-        // Bukkit uses different slot ID's to vanilla
-        int bukkitSlot = player.getInventory().getBukkitSlot(slot); // 8 -> 39, should be 36
+        if (slot >= 0 && slot <= Inventory.ITEMS_END) {
+            ModifiableItemStack item = new ModifiableItemStack(player.bukkitPlayer.getInventory().getItemStack(slot));
+            ModifiableItemStack existing = getItem(slot);
 
-        if (bukkitSlot != -1) {
-            org.bukkit.inventory.ItemStack bukkitItem = player.bukkitPlayer.getInventory().getItem(bukkitSlot);
-
-            ItemStack existing = getItem(slot);
-            ItemStack toPE = SpigotConversionUtil.fromBukkitItemStack(bukkitItem);
-
-            if (existing.getType() != toPE.getType() || existing.getAmount() != toPE.getAmount()) {
-                FoliaScheduler.getEntityScheduler().execute(player.bukkitPlayer, GrimAPI.INSTANCE.getPlugin(), () -> {
-                    player.bukkitPlayer.updateInventory();
-                }, null, 0);
-                setItem(slot, toPE);
+            if (existing.getType() != item.getType() || existing.getAmount() != item.getAmount()) {
+                player.bukkitPlayer.getInventory().update();
+                setItem(slot, item);
             }
         }
     }
@@ -119,22 +121,21 @@ public class CorrectingPlayerInventoryStorage extends InventoryStorage {
         for (Iterator<Map.Entry<Integer, Integer>> it = pendingFinalizedSlot.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<Integer, Integer> entry = it.next();
             if (entry.getValue() <= tickID) {
-                checkThatBukkitIsSynced(entry.getKey());
+                checkThatMinestomIsSynced(entry.getKey());
                 it.remove();
             }
         }
 
         if (player.getInventory().needResend) {
-            FoliaScheduler.getEntityScheduler().execute(player.bukkitPlayer, GrimAPI.INSTANCE.getPlugin(), () -> {
-                // Potential race condition doing this multiple times
-                if (!player.getInventory().needResend) return;
+            if (!player.getInventory().needResend) return;
 
-                InventoryView view = player.bukkitPlayer.getOpenInventory();
-                if (SUPPORTED_INVENTORIES.contains(view.getType().toString().toUpperCase(Locale.ROOT))) {
+            net.minestom.server.inventory.Inventory view = player.bukkitPlayer.getOpenInventory();
+            if (view != null) {
+                if (SUPPORTED_INVENTORIES.contains(view.getInventoryType().name().toUpperCase(Locale.ROOT))) {
                     player.getInventory().needResend = false;
-                    player.bukkitPlayer.updateInventory();
+                    player.bukkitPlayer.getInventory().update();
                 }
-            }, null, 0);
+            }
         }
 
         // Every five ticks, we pull a new item for the player
@@ -145,7 +146,7 @@ public class CorrectingPlayerInventoryStorage extends InventoryStorage {
             int slotToCheck = (tickID / 5) % getSize();
             // If both these things are true, there is nothing that should be broken.
             if (!pendingFinalizedSlot.containsKey(slotToCheck) && !serverIsCurrentlyProcessingThesePredictions.containsKey(slotToCheck)) {
-                checkThatBukkitIsSynced(slotToCheck);
+                checkThatMinestomIsSynced(slotToCheck);
             }
         }
     }

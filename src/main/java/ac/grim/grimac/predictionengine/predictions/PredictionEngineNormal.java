@@ -1,17 +1,17 @@
 package ac.grim.grimac.predictionengine.predictions;
 
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
 import ac.grim.grimac.utils.collisions.datatypes.SimpleCollisionBox;
 import ac.grim.grimac.utils.data.VectorData;
+import ac.grim.grimac.utils.inventory.ModifiableItemStack;
 import ac.grim.grimac.utils.math.GrimMath;
 import ac.grim.grimac.utils.nmsutil.Collisions;
 import ac.grim.grimac.utils.nmsutil.JumpPower;
-import com.github.retrooper.packetevents.protocol.item.ItemStack;
-import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.potion.PotionTypes;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateTypes;
-import org.bukkit.util.Vector;
+import ac.grim.grimac.utils.vector.MutableVector;
+import net.minestom.server.instance.block.Block;
+import net.minestom.server.item.Material;
+import net.minestom.server.potion.PotionEffect;
 
 import java.util.HashSet;
 import java.util.OptionalInt;
@@ -19,9 +19,9 @@ import java.util.Set;
 
 public class PredictionEngineNormal extends PredictionEngine {
 
-    public static void staticVectorEndOfTick(GrimPlayer player, Vector vector) {
+    public static void staticVectorEndOfTick(GrimPlayer player, MutableVector vector) {
         double adjustedY = vector.getY();
-        final OptionalInt levitation = player.compensatedEntities.getPotionLevelForPlayer(PotionTypes.LEVITATION);
+        final OptionalInt levitation = player.compensatedEntities.getPotionLevelForPlayer(PotionEffect.LEVITATION);
         if (levitation.isPresent()) {
             adjustedY += (0.05 * (levitation.getAsInt() + 1) - vector.getY()) * 0.2;
             // Reset fall distance with levitation
@@ -38,7 +38,7 @@ public class PredictionEngineNormal extends PredictionEngine {
     @Override
     public void addJumpsToPossibilities(GrimPlayer player, Set<VectorData> existingVelocities) {
         for (VectorData vector : new HashSet<>(existingVelocities)) {
-            Vector jump = vector.vector.clone();
+            MutableVector jump = vector.vector.clone();
 
             if (!player.isFlying) {
                 // Negative jump boost does not allow the player to leave the ground
@@ -46,15 +46,15 @@ public class PredictionEngineNormal extends PredictionEngine {
                 // If the player didn't try to jump
                 // And 0.03 didn't affect onGround status
                 // The player cannot jump
-                final OptionalInt jumpBoost = player.compensatedEntities.getPotionLevelForPlayer(PotionTypes.JUMP_BOOST);
+                final OptionalInt jumpBoost = player.compensatedEntities.getPotionLevelForPlayer(PotionEffect.JUMP_BOOST);
                 if (((!jumpBoost.isPresent() || jumpBoost.getAsInt() >= 0) && player.onGround) || !player.lastOnGround)
                     return;
 
                 JumpPower.jumpFromGround(player, jump);
             } else {
-                jump.add(new Vector(0, player.flySpeed * 3, 0));
+                jump.add(new MutableVector(0, player.flySpeed * 3, 0));
                 if (!player.wasFlying) {
-                    Vector edgeCaseJump = jump.clone();
+                    MutableVector edgeCaseJump = jump.clone();
                     JumpPower.jumpFromGround(player, edgeCaseJump);
                     existingVelocities.add(vector.returnNewModified(edgeCaseJump, VectorData.VectorType.Jump));
                 }
@@ -71,9 +71,9 @@ public class PredictionEngineNormal extends PredictionEngine {
         boolean walkingOnPowderSnow = false;
 
         if (!player.compensatedEntities.getSelf().inVehicle() && player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_17) &&
-                player.compensatedWorld.getStateTypeAt(player.x, player.y, player.z) == StateTypes.POWDER_SNOW) {
-            ItemStack boots = player.getInventory().getBoots();
-            walkingOnPowderSnow = boots != null && boots.getType() == ItemTypes.LEATHER_BOOTS;
+                player.compensatedWorld.getStateTypeAt(player.x, player.y, player.z) == Block.POWDER_SNOW) {
+            ModifiableItemStack boots = player.getInventory().getBoots();
+            walkingOnPowderSnow = boots != null && boots.getType() == Material.LEATHER_BOOTS;
         }
 
         player.isClimbing = Collisions.onClimbable(player, player.x, player.y, player.z);
@@ -82,7 +82,7 @@ public class PredictionEngineNormal extends PredictionEngine {
         if (player.lastWasClimbing == 0 && (player.pointThreeEstimator.isNearClimbable() || player.isClimbing) && (player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_14)
                 || !Collisions.isEmpty(player, player.boundingBox.copy().expand(
                 player.clientVelocity.getX(), 0, player.clientVelocity.getZ()).expand(0.5, -SimpleCollisionBox.COLLISION_EPSILON, 0.5))) || walkingOnPowderSnow) {
-            Vector ladderVelocity = player.clientVelocity.clone().setY(0.2);
+            MutableVector ladderVelocity = player.clientVelocity.clone().setY(0.2);
             staticVectorEndOfTick(player, ladderVelocity);
             player.lastWasClimbing = ladderVelocity.getY();
         }
@@ -93,7 +93,7 @@ public class PredictionEngineNormal extends PredictionEngine {
     }
 
     @Override
-    public Vector handleOnClimbable(Vector vector, GrimPlayer player) {
+    public MutableVector handleOnClimbable(MutableVector vector, GrimPlayer player) {
         if (player.isClimbing) {
             // Reset fall distance when climbing
             player.fallDistance = 0;
@@ -103,7 +103,7 @@ public class PredictionEngineNormal extends PredictionEngine {
             vector.setY(Math.max(vector.getY(), -0.15F));
 
             // Yes, this uses shifting not crouching
-            if (vector.getY() < 0.0 && !(player.compensatedWorld.getStateTypeAt(player.lastX, player.lastY, player.lastZ) == StateTypes.SCAFFOLDING) && player.isSneaking && !player.isFlying) {
+            if (vector.getY() < 0.0 && !(player.compensatedWorld.getStateTypeAt(player.lastX, player.lastY, player.lastZ) == Block.SCAFFOLDING) && player.isSneaking && !player.isFlying) {
                 vector.setY(0.0);
             }
         }

@@ -2,7 +2,8 @@ package ac.grim.grimac.utils.inventory.slot;
 
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.inventory.InventoryStorage;
-import com.github.retrooper.packetevents.protocol.item.ItemStack;
+import ac.grim.grimac.utils.inventory.ModifiableItemStack;
+import net.minestom.server.item.ItemStack;
 
 import java.util.Optional;
 
@@ -16,7 +17,7 @@ public class Slot {
         this.inventoryStorageSlot = slot;
     }
 
-    public ItemStack getItem() {
+    public ModifiableItemStack getItem() {
         return container.getItem(inventoryStorageSlot);
     }
 
@@ -28,7 +29,7 @@ public class Slot {
         return true;
     }
 
-    public void set(ItemStack itemstack2) {
+    public void set(ModifiableItemStack itemstack2) {
         container.setItem(inventoryStorageSlot, itemstack2);
     }
 
@@ -36,8 +37,8 @@ public class Slot {
         return container.getMaxStackSize();
     }
 
-    public int getMaxStackSize(ItemStack itemstack2) {
-        return Math.min(itemstack2.getMaxStackSize(), getMaxStackSize());
+    public int getMaxStackSize(ModifiableItemStack itemstack2) {
+        return Math.min(itemstack2.getItemStack().maxStackSize(), getMaxStackSize());
     }
 
     // TODO: Implement for anvil and smithing table
@@ -46,27 +47,25 @@ public class Slot {
         return true;
     }
 
-    public ItemStack safeTake(int p_150648_, int p_150649_, GrimPlayer p_150650_) {
-        Optional<ItemStack> optional = this.tryRemove(p_150648_, p_150649_, p_150650_);
-        optional.ifPresent((p_150655_) -> {
-            this.onTake(p_150650_, p_150655_);
-        });
-        return optional.orElse(ItemStack.EMPTY);
+    public ModifiableItemStack safeTake(int p_150648_, int p_150649_, GrimPlayer p_150650_) {
+        Optional<ModifiableItemStack> optional = this.tryRemove(p_150648_, p_150649_, p_150650_);
+        optional.ifPresent((p_150655_) -> this.onTake(p_150650_, p_150655_.getItemStack()));
+        return optional.orElse(ModifiableItemStack.EMPTY);
     }
 
-    public Optional<ItemStack> tryRemove(int p_150642_, int p_150643_, GrimPlayer p_150644_) {
+    public Optional<ModifiableItemStack> tryRemove(int p_150642_, int p_150643_, GrimPlayer p_150644_) {
         if (!this.mayPickup(p_150644_)) {
             return Optional.empty();
         } else if (!this.allowModification(p_150644_) && p_150643_ < this.getItem().getAmount()) {
             return Optional.empty();
         } else {
             p_150642_ = Math.min(p_150642_, p_150643_);
-            ItemStack itemstack = this.remove(p_150642_);
+            ModifiableItemStack itemstack = this.remove(p_150642_);
             if (itemstack.isEmpty()) {
                 return Optional.empty();
             } else {
                 if (this.getItem().isEmpty()) {
-                    this.set(ItemStack.EMPTY);
+                    this.set(ModifiableItemStack.EMPTY);
                 }
 
                 return Optional.of(itemstack);
@@ -74,24 +73,21 @@ public class Slot {
         }
     }
 
-    public ItemStack safeInsert(ItemStack stack, int amount) {
-        if (!stack.isEmpty() && this.mayPlace(stack)) {
-            ItemStack itemstack = this.getItem();
+    public ModifiableItemStack safeInsert(ModifiableItemStack stack, int amount) {
+        if (!stack.isEmpty() && this.mayPlace(stack.getItemStack())) {
+            ModifiableItemStack itemstack = this.getItem();
             int i = Math.min(Math.min(amount, stack.getAmount()), this.getMaxStackSize(stack) - itemstack.getAmount());
             if (itemstack.isEmpty()) {
-                this.set(stack.split(i));
-            } else if (ItemStack.isSameItemSameTags(itemstack, stack)) {
-                stack.shrink(i);
+                this.set(stack.split2(i));
+            } else if (itemstack.getItemStack().isSimilar(stack.getItemStack())) {
+                stack.split(i);
                 itemstack.grow(i);
-                this.set(itemstack);
             }
-            return stack;
-        } else {
-            return stack;
         }
+        return stack;
     }
 
-    public ItemStack remove(int p_40227_) {
+    public ModifiableItemStack remove(int p_40227_) {
         return this.container.removeItem(this.inventoryStorageSlot, p_40227_);
     }
 
@@ -101,7 +97,7 @@ public class Slot {
 
     // No override
     public boolean allowModification(GrimPlayer p_150652_) {
-        return this.mayPickup(p_150652_) && this.mayPlace(this.getItem());
+        return this.mayPickup(p_150652_) && this.mayPlace(this.getItem().getItemStack());
     }
 
     public boolean mayPickup(GrimPlayer p_40228_) {

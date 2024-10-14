@@ -4,10 +4,9 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.data.packetentity.PacketEntity;
-import com.github.retrooper.packetevents.event.PacketSendEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import net.minestom.server.event.player.PlayerPacketOutEvent;
+import net.minestom.server.network.packet.server.play.TeamsPacket;
 
 import java.util.Map;
 import java.util.Optional;
@@ -41,18 +40,14 @@ public class TeamHandler extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketSend(PacketSendEvent event) {
-        if (event.getPacketType() == PacketType.Play.Server.TEAMS) {
-            WrapperPlayServerTeams teams = new WrapperPlayServerTeams(event);
-            final String teamName = teams.getTeamName();
+    public void onPacketSend(PlayerPacketOutEvent event) {
+        if (event.getPacket() instanceof TeamsPacket teams) {
+            final String teamName = teams.teamName();
             player.latencyUtils.addRealTimeTask(player.lastTransactionSent.get(), () -> {
-                switch (teams.getTeamMode()) {
-                    case CREATE:
-                        entityTeams.put(teamName, new EntityTeam(player, teamName));
-                        break;
-                    case REMOVE:
-                        entityTeams.remove(teamName);
-                        break;
+                if (teams.action() instanceof TeamsPacket.CreateTeamAction) {
+                    entityTeams.put(teamName, new EntityTeam(player, teamName));
+                } else if (teams.action() instanceof TeamsPacket.RemoveTeamAction) {
+                    entityTeams.remove(teamName);
                 }
 
                 entityTeams.computeIfPresent(teamName, (s, team) -> {

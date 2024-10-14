@@ -3,11 +3,10 @@ package ac.grim.grimac.manager;
 import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
+import ac.grim.grimac.utils.WrapperPlayClientPlayerFlying;
 import lombok.Getter;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.play.ClientInteractEntityPacket;
 
 @Getter
 public class ActionManager extends Check implements PacketCheck {
@@ -19,15 +18,14 @@ public class ActionManager extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketReceive(final PacketReceiveEvent event) {
-        if (event.getPacketType() == PacketType.Play.Client.INTERACT_ENTITY) {
-            WrapperPlayClientInteractEntity action = new WrapperPlayClientInteractEntity(event);
-            if (action.getAction() == WrapperPlayClientInteractEntity.InteractAction.ATTACK) {
+    public void onPacketReceive(PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientInteractEntityPacket action) {
+            if (action.type() instanceof ClientInteractEntityPacket.Attack) {
                 player.totalFlyingPacketsSent = 0;
                 attacking = true;
                 lastAttack = System.currentTimeMillis();
             }
-        } else if (WrapperPlayClientPlayerFlying.isFlying(event.getPacketType())) {
+        } else if (WrapperPlayClientPlayerFlying.isFlying(event.getPacket())) {
             player.totalFlyingPacketsSent++;
             attacking = false;
         }
@@ -36,4 +34,6 @@ public class ActionManager extends Check implements PacketCheck {
     public boolean hasAttackedSince(long time) {
         return System.currentTimeMillis() - lastAttack < time;
     }
+
+
 }

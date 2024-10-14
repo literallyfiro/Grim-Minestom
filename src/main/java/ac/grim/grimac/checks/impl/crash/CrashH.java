@@ -4,9 +4,8 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientTabComplete;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.play.ClientTabCompletePacket;
 
 @CheckData(name = "CrashH")
 public class CrashH extends Check implements PacketCheck {
@@ -16,10 +15,9 @@ public class CrashH extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
-        if (event.getPacketType() == PacketType.Play.Client.TAB_COMPLETE) {
-            WrapperPlayClientTabComplete wrapper = new WrapperPlayClientTabComplete(event);
-            String text = wrapper.getText();
+    public void onPacketReceive(PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientTabCompletePacket wrapper) {
+            String text = wrapper.text();
             final int length = text.length();
             // general length limit
             if (length > 256) {

@@ -3,14 +3,9 @@ package ac.grim.grimac.manager.init.start;
 import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.manager.init.Initable;
 import ac.grim.grimac.player.GrimPlayer;
-import ac.grim.grimac.utils.lists.HookedListWrapper;
-import com.github.retrooper.packetevents.util.reflection.Reflection;
-import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
-import sun.misc.Unsafe;
-
-import java.lang.reflect.Field;
-import java.util.Collections;
-import java.util.List;
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.timer.ExecutionType;
+import net.minestom.server.timer.TaskSchedule;
 
 // Copied from: https://github.com/ThomasOM/Pledge/blob/master/src/main/java/dev/thomazz/pledge/inject/ServerInjector.java
 @SuppressWarnings(value = {"unchecked", "deprecated"})
@@ -30,32 +25,36 @@ public class TickEndEvent implements Initable {
             return;
         }
 
-        // Inject so we can add the final transaction pre-flush event
-        try {
-            Object connection = SpigotReflectionUtil.getMinecraftServerConnectionInstance();
-
-            Field connectionsList = Reflection.getField(connection.getClass(), List.class, 1);
-            List<Object> endOfTickObject = (List<Object>) connectionsList.get(connection);
-
-            // Use a list wrapper to check when the size method is called
-            // Unsure why synchronized is needed because the object itself gets synchronized
-            // but whatever.  At least plugins can't break it, I guess.
-            //
-            // Pledge injects into another list, so we should be safe injecting into this one
-            List<?> wrapper = Collections.synchronizedList(new HookedListWrapper<Object>(endOfTickObject) {
-                @Override
-                public void onIterator() {
-                    hasTicked = true;
-                    tickRelMove();
-                }
-            });
-
-            Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
-            unsafeField.setAccessible(true);
-            Unsafe unsafe = (Unsafe) unsafeField.get(null);
-            unsafe.putObject(connection, unsafe.objectFieldOffset(connectionsList), wrapper);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-        }
+        MinecraftServer.getSchedulerManager().buildTask(() -> {
+            hasTicked = true;
+            tickRelMove();
+        }).executionType(ExecutionType.TICK_END).repeat(TaskSchedule.tick(1)).schedule();
+//        // Inject so we can add the final transaction pre-flush event
+//        try {
+//            Object connection = SpigotReflectionUtil.getMinecraftServerConnectionInstance();
+//
+//            Field connectionsList = Reflection.getField(connection.getClass(), List.class, 1);
+//            List<Object> endOfTickObject = (List<Object>) connectionsList.get(connection);
+//
+//            // Use a list wrapper to check when the size method is called
+//            // Unsure why synchronized is needed because the object itself gets synchronized
+//            // but whatever.  At least plugins can't break it, I guess.
+//            //
+//            // Pledge injects into another list, so we should be safe injecting into this one
+//            List<?> wrapper = Collections.synchronizedList(new HookedListWrapper<Object>(endOfTickObject) {
+//                @Override
+//                public void onIterator() {
+//                    hasTicked = true;
+//                    tickRelMove();
+//                }
+//            });
+//
+//            Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
+//            unsafeField.setAccessible(true);
+//            Unsafe unsafe = (Unsafe) unsafeField.get(null);
+//            unsafe.putObject(connection, unsafe.objectFieldOffset(connectionsList), wrapper);
+//        } catch (NoSuchFieldException | IllegalAccessException e) {
+//            e.printStackTrace();
+//        }
     }
 }

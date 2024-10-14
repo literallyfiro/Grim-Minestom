@@ -10,12 +10,18 @@ import ac.grim.grimac.utils.anticheat.update.PredictionComplete;
 import ac.grim.grimac.utils.data.VectorData;
 import ac.grim.grimac.utils.lists.EvictingQueue;
 import ac.grim.grimac.utils.math.GrimMath;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.protocol.world.states.WrappedBlockState;
+import ac.grim.grimac.utils.minestom.MinestomWrappedBlockState;
+import ac.grim.grimac.utils.vector.MutableVector;
 import lombok.AllArgsConstructor;
-import org.bukkit.util.Vector;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 public final class SuperDebug extends Check implements PostPredictionCheck {
     private static final StringBuilder[] flags = new StringBuilder[256]; //  17 MB of logs in memory
@@ -23,11 +29,11 @@ public final class SuperDebug extends Check implements PostPredictionCheck {
     Map<StringBuilder, Integer> continuedDebug = new HashMap<>();
 
     List<VectorData> predicted = new EvictingQueue<>(60);
-    List<Vector> actually = new EvictingQueue<>(60);
+    List<MutableVector> actually = new EvictingQueue<>(60);
     List<Location> locations = new EvictingQueue<>(60);
-    List<Vector> startTickClientVel = new EvictingQueue<>(60);
-    List<Vector> baseTickAddition = new EvictingQueue<>(60);
-    List<Vector> baseTickWater = new EvictingQueue<>(60);
+    List<MutableVector> startTickClientVel = new EvictingQueue<>(60);
+    List<MutableVector> baseTickAddition = new EvictingQueue<>(60);
+    List<MutableVector> baseTickWater = new EvictingQueue<>(60);
 
     public SuperDebug(GrimPlayer player) {
         super(player);
@@ -42,8 +48,8 @@ public final class SuperDebug extends Check implements PostPredictionCheck {
     @Override
     public void onPredictionComplete(final PredictionComplete predictionComplete) {
         if (!predictionComplete.isChecked()) return;
-
-        Location location = new Location(player.x, player.y, player.z, player.xRot, player.yRot, player.bukkitPlayer == null ? "null" : player.bukkitPlayer.getWorld().getName());
+        if (player.bukkitPlayer.getInstance() == null) return;
+        Location location = new Location(player.x, player.y, player.z, player.xRot, player.yRot, player.bukkitPlayer.getInstance().getUniqueId());
 
         for (Iterator<Map.Entry<StringBuilder, Integer>> it = continuedDebug.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<StringBuilder, Integer> debug = it.next();
@@ -65,24 +71,22 @@ public final class SuperDebug extends Check implements PostPredictionCheck {
         sb.append("Grim Version: ").append(GrimAPI.INSTANCE.getExternalAPI().getGrimVersion());
         sb.append("\n");
         sb.append("Player Name: ");
-        sb.append(player.user.getName());
+        sb.append(player.bukkitPlayer.getName());
         sb.append("\nClient Version: ");
         sb.append(player.getClientVersion().getReleaseName());
         sb.append("\nClient Brand: ");
         sb.append(player.getBrand());
-        sb.append("\nServer Version: ");
-        sb.append(PacketEvents.getAPI().getServerManager().getVersion().getReleaseName());
         sb.append("\nPing: ");
         sb.append(player.getTransactionPing());
         sb.append("ms\n\n");
 
         for (int i = 0; i < predicted.size(); i++) {
             VectorData predict = predicted.get(i);
-            Vector actual = actually.get(i);
+            MutableVector actual = actually.get(i);
             Location loc = locations.get(i);
-            Vector startTickVel = startTickClientVel.get(i);
-            Vector addition = baseTickAddition.get(i);
-            Vector water = baseTickWater.get(i);
+            MutableVector startTickVel = startTickClientVel.get(i);
+            MutableVector addition = baseTickAddition.get(i);
+            MutableVector water = baseTickWater.get(i);
             appendDebug(sb, predict, actual, loc, startTickVel, addition, water);
         }
 
@@ -151,7 +155,7 @@ public final class SuperDebug extends Check implements PostPredictionCheck {
                 maxPosLength = (int) Math.max(maxPosLength, Math.ceil(Math.log10(Math.abs(z))));
                 for (int x = GrimMath.floor(player.boundingBox.minX) - 2; x <= GrimMath.ceil(player.boundingBox.maxX) + 2; x++) {
                     maxPosLength = (int) Math.max(maxPosLength, Math.ceil(Math.log10(Math.abs(x))));
-                    WrappedBlockState block = player.compensatedWorld.getWrappedBlockStateAt(x, y, z);
+                    MinestomWrappedBlockState block = player.compensatedWorld.getWrappedBlockStateAt(x, y, z);
                     maxLength = Math.max(block.toString().replace("minecraft:", "").length(), maxLength);
                 }
             }
@@ -174,7 +178,7 @@ public final class SuperDebug extends Check implements PostPredictionCheck {
             for (int z = GrimMath.floor(player.boundingBox.minZ) - 2; z <= GrimMath.ceil(player.boundingBox.maxZ) + 2; z++) {
                 sb.append(String.format("%-" + maxPosLength + "s", "z: " + z + " "));
                 for (int x = GrimMath.floor(player.boundingBox.minX) - 2; x <= GrimMath.ceil(player.boundingBox.maxX) + 2; x++) {
-                    WrappedBlockState block = player.compensatedWorld.getWrappedBlockStateAt(x, y, z);
+                    MinestomWrappedBlockState block = player.compensatedWorld.getWrappedBlockStateAt(x, y, z);
                     sb.append(String.format("%-" + maxLength + "s", block.toString().replace("minecraft:", "")));
                 }
                 sb.append("\n");
@@ -187,7 +191,7 @@ public final class SuperDebug extends Check implements PostPredictionCheck {
         continuedDebug.put(sb, 40);
     }
 
-    private void appendDebug(StringBuilder sb, VectorData predict, Vector actual, Location location, Vector startTick, Vector addition, Vector water) {
+    private void appendDebug(StringBuilder sb, VectorData predict, MutableVector actual, Location location, MutableVector startTick, MutableVector addition, MutableVector water) {
         if (predict.isZeroPointZeroThree()) {
             sb.append("Movement threshold/tick skipping\n");
         }
@@ -223,11 +227,11 @@ public final class SuperDebug extends Check implements PostPredictionCheck {
         // Apply 0.003/0.005 to make numbers more accurate
         Set<VectorData> set = new HashSet<>(Collections.singletonList(new VectorData(startTick.clone(), VectorData.VectorType.BestVelPicked)));
         new PredictionEngine().applyMovementThreshold(player, set);
-        Vector trueStartVel = ((VectorData) set.toArray()[0]).vector;
+        MutableVector trueStartVel = ((VectorData) set.toArray()[0]).vector;
 
-        Vector clientMovement = getPlayerMathMovement(player, actual.clone().subtract(trueStartVel), location.xRot);
-        Vector simulatedMovement = getPlayerMathMovement(player, predict.vector.clone().subtract(trueStartVel), location.xRot);
-        Vector offset = actual.clone().subtract(predict.vector);
+        MutableVector clientMovement = getPlayerMathMovement(player, actual.clone().subtract(trueStartVel), location.xRot);
+        MutableVector simulatedMovement = getPlayerMathMovement(player, predict.vector.clone().subtract(trueStartVel), location.xRot);
+        MutableVector offset = actual.clone().subtract(predict.vector);
         trueStartVel.add(addition);
         trueStartVel.add(water);
 
@@ -266,25 +270,25 @@ public final class SuperDebug extends Check implements PostPredictionCheck {
         sb.append("\n\n");
     }
 
-    private Vector getPlayerMathMovement(GrimPlayer player, Vector wantedMovement, float f2) {
+    private MutableVector getPlayerMathMovement(GrimPlayer player, MutableVector wantedMovement, float f2) {
         float f3 = player.trigHandler.sin(f2 * 0.017453292f);
         float f4 = player.trigHandler.cos(f2 * 0.017453292f);
 
         float bestTheoreticalX = (float) (f3 * wantedMovement.getZ() + f4 * wantedMovement.getX()) / (f3 * f3 + f4 * f4);
         float bestTheoreticalZ = (float) (-f3 * wantedMovement.getX() + f4 * wantedMovement.getZ()) / (f3 * f3 + f4 * f4);
 
-        return new Vector(bestTheoreticalX, 0, bestTheoreticalZ);
+        return new MutableVector(bestTheoreticalX, 0, bestTheoreticalZ);
     }
 
     @AllArgsConstructor
     private static final class Location {
         double x, y, z;
         float xRot, yRot;
-        String world;
+        UUID instanceUUID;
 
         @Override
         public String toString() {
-            return "x: " + x + " y: " + y + " z: " + z + " xRot: " + xRot + " yRot: " + yRot + " world: " + world;
+            return "x: " + x + " y: " + y + " z: " + z + " xRot: " + xRot + " yRot: " + yRot + " world: " + instanceUUID.toString();
         }
     }
 }

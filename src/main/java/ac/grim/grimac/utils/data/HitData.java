@@ -1,29 +1,29 @@
 package ac.grim.grimac.utils.data;
 
-import com.github.retrooper.packetevents.protocol.world.BlockFace;
-import com.github.retrooper.packetevents.protocol.world.states.WrappedBlockState;
-import com.github.retrooper.packetevents.util.Vector3d;
-import com.github.retrooper.packetevents.util.Vector3i;
+import ac.grim.grimac.utils.minestom.MinestomWrappedBlockState;
+import ac.grim.grimac.utils.vector.MutableVector;
 import lombok.Getter;
 import lombok.ToString;
-import org.bukkit.util.Vector;
+import ac.grim.grimac.utils.minestom.BlockFace;
+import net.minestom.server.coordinate.Point;
+import net.minestom.server.coordinate.Vec;
 
 @Getter
 @ToString
 public class HitData {
-    Vector3i position;
-    Vector blockHitLocation;
-    WrappedBlockState state;
+    Point position;
+    MutableVector blockHitLocation;
+    MinestomWrappedBlockState state;
     BlockFace closestDirection;
 
-    public HitData(Vector3i position, Vector blockHitLocation, BlockFace closestDirection, WrappedBlockState state) {
+    public HitData(Point position, MutableVector blockHitLocation, BlockFace closestDirection, MinestomWrappedBlockState state) {
         this.position = position;
         this.blockHitLocation = blockHitLocation;
         this.closestDirection = closestDirection;
         this.state = state;
     }
 
-    public Vector3d getRelativeBlockHitLocation() {
-        return new Vector3d(blockHitLocation.getX() - position.getX(), blockHitLocation.getY() - position.getY(), blockHitLocation.getZ() - position.getZ());
+    public Point getRelativeBlockHitLocation() {
+        return new Vec(blockHitLocation.getX() - position.x(), blockHitLocation.getY() - position.y(), blockHitLocation.getZ() - position.z());
     }
 }

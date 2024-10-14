@@ -4,14 +4,11 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import ac.grim.grimac.utils.nmsutil.BlockBreakSpeed;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.protocol.player.DiggingAction;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateType;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateTypes;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerDigging;
+import ac.grim.grimac.utils.ClientVersion;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.instance.block.Block;
+import net.minestom.server.item.Material;
+import net.minestom.server.network.packet.client.play.ClientPlayerDiggingPacket;
 
 @CheckData(name = "BadPacketsX", experimental = true)
 public class BadPacketsX extends Check implements PacketCheck {
@@ -21,22 +18,21 @@ public class BadPacketsX extends Check implements PacketCheck {
 
     public final boolean noFireHitbox = player.getClientVersion().isOlderThanOrEquals(ClientVersion.V_1_15_2);
 
-    public final void handle(PacketReceiveEvent event, WrapperPlayClientPlayerDigging dig, StateType block) {
-        if (dig.getAction() != DiggingAction.START_DIGGING && dig.getAction() != DiggingAction.FINISHED_DIGGING)
+    public final void handle(PlayerPacketEvent event, ClientPlayerDiggingPacket dig, Block block) {
+        if (dig.status() != ClientPlayerDiggingPacket.Status.STARTED_DIGGING && dig.status() != ClientPlayerDiggingPacket.Status.FINISHED_DIGGING)
             return;
 
         // the block does not have a hitbox
-        boolean invalid = (block == StateTypes.LIGHT && !(player.getInventory().getHeldItem().is(ItemTypes.LIGHT) || player.getInventory().getOffHand().is(ItemTypes.LIGHT)))
+        boolean invalid = (block == Block.LIGHT && !(player.getInventory().getHeldItem().getType() == Material.LIGHT || player.getInventory().getOffHand().getType() == Material.LIGHT))
                 || block.isAir()
-                || block == StateTypes.WATER
-                || block == StateTypes.LAVA
-                || block == StateTypes.BUBBLE_COLUMN
-                || block == StateTypes.MOVING_PISTON
-                || (block == StateTypes.FIRE && noFireHitbox)
+                || block.isLiquid()
+                || block == Block.BUBBLE_COLUMN
+                || block == Block.MOVING_PISTON
+                || (block == Block.FIRE && noFireHitbox)
                 // or the client claims to have broken an unbreakable block
-                || block.getHardness() == -1.0f && dig.getAction() == DiggingAction.FINISHED_DIGGING;
+                || block.registry().hardness() == -1.0f && dig.status() == ClientPlayerDiggingPacket.Status.FINISHED_DIGGING;
 
-        if (invalid && flagAndAlert("block=" + block.getName() + ", type=" + dig.getAction()) && shouldModifyPackets()) {
+        if (invalid && flagAndAlert("block=" + block.name() + ", type=" + dig.status()) && shouldModifyPackets()) {
             event.setCancelled(true);
             player.onPacketCancel();
         }

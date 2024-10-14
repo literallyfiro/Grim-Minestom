@@ -1,8 +1,7 @@
 package ac.grim.grimac.utils.inventory;
 
-import com.github.retrooper.packetevents.protocol.item.ItemStack;
-import com.github.retrooper.packetevents.protocol.item.type.ItemType;
-import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
+import net.minestom.server.item.ItemStack;
+import net.minestom.server.item.Material;
 
 public enum EquipmentType {
     MAINHAND,
@@ -13,50 +12,45 @@ public enum EquipmentType {
     HEAD;
 
     public static EquipmentType byArmorID(int id) {
-        switch (id) {
-            case 0:
-                return HEAD;
-            case 1:
-                return CHEST;
-            case 2:
-                return LEGS;
-            case 3:
-                return FEET;
-            default:
-                return MAINHAND;
-        }
+        return switch (id) {
+            case 0 -> HEAD;
+            case 1 -> CHEST;
+            case 2 -> LEGS;
+            case 3 -> FEET;
+            default -> MAINHAND;
+        };
     }
 
     public static EquipmentType getEquipmentSlotForItem(ItemStack p_147234_) {
-        ItemType item = p_147234_.getType();
-        if (item == ItemTypes.CARVED_PUMPKIN || (item.getName().getKey().contains("SKULL") ||
-                (item.getName().getKey().contains("HEAD") && !item.getName().getKey().contains("PISTON")))) {
+        Material item = p_147234_.material();
+        if (item == Material.CARVED_PUMPKIN || (item.namespace().key().asString().contains("SKULL") ||
+                (item.namespace().key().asString().contains("HEAD") && !item.namespace().key().asString().contains("PISTON")))) {
             return HEAD;
         }
-        if (item == ItemTypes.ELYTRA) {
+        if (item == Material.ELYTRA) {
             return CHEST;
         }
-        if (item == ItemTypes.LEATHER_BOOTS || item == ItemTypes.CHAINMAIL_BOOTS
-                || item == ItemTypes.IRON_BOOTS || item == ItemTypes.DIAMOND_BOOTS
-                || item == ItemTypes.GOLDEN_BOOTS || item == ItemTypes.NETHERITE_BOOTS) {
+        if (item == Material.LEATHER_BOOTS || item == Material.CHAINMAIL_BOOTS
+                || item == Material.IRON_BOOTS || item == Material.DIAMOND_BOOTS
+                || item == Material.GOLDEN_BOOTS || item == Material.NETHERITE_BOOTS) {
             return FEET;
         }
-        if (item == ItemTypes.LEATHER_LEGGINGS || item == ItemTypes.CHAINMAIL_LEGGINGS
-                || item == ItemTypes.IRON_LEGGINGS || item == ItemTypes.DIAMOND_LEGGINGS
-                || item == ItemTypes.GOLDEN_LEGGINGS || item == ItemTypes.NETHERITE_LEGGINGS) {
+        if (item == Material.LEATHER_LEGGINGS || item == Material.CHAINMAIL_LEGGINGS
+                || item == Material.IRON_LEGGINGS || item == Material.DIAMOND_LEGGINGS
+                || item == Material.GOLDEN_LEGGINGS || item == Material.NETHERITE_LEGGINGS) {
             return LEGS;
         }
-        if (item == ItemTypes.LEATHER_CHESTPLATE || item == ItemTypes.CHAINMAIL_CHESTPLATE
-                || item == ItemTypes.IRON_CHESTPLATE || item == ItemTypes.DIAMOND_CHESTPLATE
-                || item == ItemTypes.GOLDEN_CHESTPLATE || item == ItemTypes.NETHERITE_CHESTPLATE) {
+        if (item == Material.LEATHER_CHESTPLATE || item == Material.CHAINMAIL_CHESTPLATE
+                || item == Material.IRON_CHESTPLATE || item == Material.DIAMOND_CHESTPLATE
+                || item == Material.GOLDEN_CHESTPLATE || item == Material.NETHERITE_CHESTPLATE) {
             return CHEST;
         }
-        if (item == ItemTypes.LEATHER_HELMET || item == ItemTypes.CHAINMAIL_HELMET
-                || item == ItemTypes.IRON_HELMET || item == ItemTypes.DIAMOND_HELMET
-                || item == ItemTypes.GOLDEN_HELMET || item == ItemTypes.NETHERITE_HELMET) {
+        if (item == Material.LEATHER_HELMET || item == Material.CHAINMAIL_HELMET
+                || item == Material.IRON_HELMET || item == Material.DIAMOND_HELMET
+                || item == Material.GOLDEN_HELMET || item == Material.NETHERITE_HELMET) {
             return HEAD;
         }
-        return ItemTypes.SHIELD == item ? OFFHAND : MAINHAND;
+        return Material.SHIELD == item ? OFFHAND : MAINHAND;
     }
 
     public boolean isArmor() {
@@ -64,21 +58,12 @@ public enum EquipmentType {
     }
 
     public int getIndex() {
-        switch (this) {
-            case MAINHAND:
-                return 0;
-            case OFFHAND:
-                return 1;
-            case FEET:
-                return 0;
-            case LEGS:
-                return 1;
-            case CHEST:
-                return 2;
-            case HEAD:
-                return 3;
-            default:
-                return -1;
-        }
+        return switch (this) {
+            case MAINHAND, FEET -> 0;
+            case OFFHAND, LEGS -> 1;
+            case CHEST -> 2;
+            case HEAD -> 3;
+            default -> -1;
+        };
     }
 }

@@ -1,12 +1,13 @@
 package ac.grim.grimac.utils.inventory.slot;
 
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.EnchantmentUtils;
 import ac.grim.grimac.utils.inventory.EquipmentType;
 import ac.grim.grimac.utils.inventory.InventoryStorage;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.protocol.item.ItemStack;
-import com.github.retrooper.packetevents.protocol.item.enchantment.type.EnchantmentTypes;
-import com.github.retrooper.packetevents.protocol.player.GameMode;
+import ac.grim.grimac.utils.inventory.ModifiableItemStack;
+import net.minestom.server.entity.GameMode;
+import net.minestom.server.item.ItemStack;
+import net.minestom.server.item.enchant.Enchantment;
 
 public class EquipmentSlot extends Slot {
     EquipmentType type;
@@ -27,7 +28,7 @@ public class EquipmentSlot extends Slot {
     }
 
     public boolean mayPickup(GrimPlayer p_39744_) {
-        ItemStack itemstack = this.getItem();
-        return (itemstack.isEmpty() || p_39744_.gamemode == GameMode.CREATIVE || itemstack.getEnchantmentLevel(EnchantmentTypes.BINDING_CURSE, PacketEvents.getAPI().getServerManager().getVersion().toClientVersion()) == 0) && super.mayPickup(p_39744_);
+        ModifiableItemStack itemstack = this.getItem();
+        return (itemstack.isEmpty() || p_39744_.gamemode == GameMode.CREATIVE || EnchantmentUtils.getEnchantmentLevel(itemstack.getItemStack(), Enchantment.BINDING_CURSE) == 0) && super.mayPickup(p_39744_);
     }
 }

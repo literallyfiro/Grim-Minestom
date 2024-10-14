@@ -1,17 +1,16 @@
 package ac.grim.grimac.utils.nmsutil;
 
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.protocol.world.states.WrappedBlockState;
-import com.github.retrooper.packetevents.protocol.world.states.enums.Thickness;
-import com.github.retrooper.packetevents.protocol.world.states.enums.VerticalDirection;
-import com.github.retrooper.packetevents.protocol.world.states.type.StateTypes;
+import ac.grim.grimac.utils.minestom.MinestomWrappedBlockState;
+import ac.grim.grimac.utils.minestom.enums.*;
+import net.minestom.server.instance.block.Block;
 
 public class Dripstone {
-    public static WrappedBlockState update(GrimPlayer player, WrappedBlockState toPlace, int x, int y, int z, boolean secondaryUse) {
+    public static MinestomWrappedBlockState update(GrimPlayer player, MinestomWrappedBlockState toPlace, int x, int y, int z, boolean secondaryUse) {
         VerticalDirection primaryDirection = toPlace.getVerticalDirection();
         VerticalDirection opposite = toPlace.getVerticalDirection() == VerticalDirection.UP ? VerticalDirection.DOWN : VerticalDirection.UP;
 
-        WrappedBlockState typePlacingOn = player.compensatedWorld.getWrappedBlockStateAt(x, y + (primaryDirection == VerticalDirection.UP ? 1 : -1), z);
+        MinestomWrappedBlockState typePlacingOn = player.compensatedWorld.getWrappedBlockStateAt(x, y + (primaryDirection == VerticalDirection.UP ? 1 : -1), z);
 
         if (isPointedDripstoneWithDirection(typePlacingOn, opposite)) {
             // Use tip if the player is sneaking, or if it already is merged (somehow)
@@ -27,7 +26,7 @@ public class Dripstone {
                 Thickness dripThick = typePlacingOn.getThickness();
                 if (dripThick != Thickness.TIP && dripThick != Thickness.TIP_MERGE) {
                     // Look downwards
-                    WrappedBlockState oppositeData = player.compensatedWorld.getWrappedBlockStateAt(x, y + (opposite == VerticalDirection.UP ? 1 : -1), z);
+                    MinestomWrappedBlockState oppositeData = player.compensatedWorld.getWrappedBlockStateAt(x, y + (opposite == VerticalDirection.UP ? 1 : -1), z);
                     Thickness toSetThick = !isPointedDripstoneWithDirection(oppositeData, primaryDirection)
                             ? Thickness.BASE : Thickness.MIDDLE;
                     toPlace.setThickness(toSetThick);
@@ -39,7 +38,7 @@ public class Dripstone {
         return toPlace;
     }
 
-    private static boolean isPointedDripstoneWithDirection(WrappedBlockState unknown, VerticalDirection direction) {
-        return unknown.getType() == StateTypes.POINTED_DRIPSTONE && unknown.getVerticalDirection() == direction;
+    private static boolean isPointedDripstoneWithDirection(MinestomWrappedBlockState unknown, VerticalDirection direction) {
+        return unknown.getType() == Block.POINTED_DRIPSTONE && unknown.getVerticalDirection() == direction;
     }
 }

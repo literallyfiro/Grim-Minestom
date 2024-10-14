@@ -4,9 +4,11 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
+import ac.grim.grimac.utils.WrapperPlayClientPlayerFlying;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.play.ClientPlayerPositionAndRotationPacket;
+import net.minestom.server.network.packet.client.play.ClientPlayerPositionPacket;
+import net.minestom.server.network.packet.client.play.ClientSteerVehiclePacket;
 
 @CheckData(name = "BadPacketsE")
 public class BadPacketsE extends Check implements PacketCheck {
@@ -17,13 +19,13 @@ public class BadPacketsE extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
-        if (event.getPacketType() == PacketType.Play.Client.PLAYER_POSITION_AND_ROTATION ||
-                event.getPacketType() == PacketType.Play.Client.PLAYER_POSITION) {
+    public void onPacketReceive(PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientPlayerPositionAndRotationPacket ||
+                event.getPacket() instanceof ClientPlayerPositionPacket) {
             noReminderTicks = 0;
-        } else if (WrapperPlayClientPlayerFlying.isFlying(event.getPacketType())) {
+        } else if (WrapperPlayClientPlayerFlying.isFlying(event.getPacket())) {
             noReminderTicks++;
-        } else if (event.getPacketType() == PacketType.Play.Client.STEER_VEHICLE) {
+        } else if (event.getPacket() instanceof ClientSteerVehiclePacket) {
             noReminderTicks = 0; // Exempt vehicles
         }
 

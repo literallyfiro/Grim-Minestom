@@ -1,7 +1,7 @@
 package ac.grim.grimac.utils.data;
 
-import com.github.retrooper.packetevents.protocol.teleport.RelativeFlag;
-import com.github.retrooper.packetevents.util.Vector3d;
+import ac.grim.grimac.utils.RelativeFlag;
+import ac.grim.grimac.utils.vector.Vector3d;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;

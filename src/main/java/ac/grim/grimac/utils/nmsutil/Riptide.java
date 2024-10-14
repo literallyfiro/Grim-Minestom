@@ -1,24 +1,24 @@
 package ac.grim.grimac.utils.nmsutil;
 
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.protocol.item.ItemStack;
-import com.github.retrooper.packetevents.protocol.item.enchantment.type.EnchantmentTypes;
-import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
-import org.bukkit.util.Vector;
+import ac.grim.grimac.utils.EnchantmentUtils;
+import ac.grim.grimac.utils.inventory.ModifiableItemStack;
+import ac.grim.grimac.utils.vector.MutableVector;
+import net.minestom.server.item.Material;
+import net.minestom.server.item.enchant.Enchantment;
 
 public class Riptide {
-    public static Vector getRiptideVelocity(GrimPlayer player) {
-        ItemStack main = player.getInventory().getHeldItem();
-        ItemStack off = player.getInventory().getOffHand();
+    public static MutableVector getRiptideVelocity(GrimPlayer player) {
+        ModifiableItemStack main = player.getInventory().getHeldItem();
+        ModifiableItemStack off = player.getInventory().getOffHand();
 
         int j;
-        if (main.getType() == ItemTypes.TRIDENT) {
-            j = main.getEnchantmentLevel(EnchantmentTypes.RIPTIDE, PacketEvents.getAPI().getServerManager().getVersion().toClientVersion());
-        } else if (off.getType() == ItemTypes.TRIDENT) {
-            j = off.getEnchantmentLevel(EnchantmentTypes.RIPTIDE, PacketEvents.getAPI().getServerManager().getVersion().toClientVersion());
+        if (main.getType() == Material.TRIDENT) {
+            j = EnchantmentUtils.getEnchantmentLevel(main.getItemStack(), Enchantment.RIPTIDE);
+        } else if (off.getType() == Material.TRIDENT) {
+            j = EnchantmentUtils.getEnchantmentLevel(off.getItemStack(), Enchantment.RIPTIDE);
         } else {
-            return new Vector(); // Can't riptide
+            return new MutableVector(); // Can't riptide
         }
 
         float f7 = player.xRot;
@@ -34,8 +34,8 @@ public class Riptide {
 
         // If the player collided vertically with the 1.199999F pushing movement, then the Y additional movement was added
         // (We switched the order around as our prediction engine isn't designed for the proper implementation)
-        if (player.verticalCollision) return new Vector(f1, 0, f3);
+        if (player.verticalCollision) return new MutableVector(f1, 0, f3);
 
-        return new Vector(f1, f2, f3);
+        return new MutableVector(f1, f2, f3);
     }
 }

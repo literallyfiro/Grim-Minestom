@@ -1,9 +1,7 @@
 package ac.grim.grimac.utils.anticheat;
 
-import ac.grim.grimac.GrimAPI;
 import lombok.experimental.UtilityClass;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
+import net.minestom.server.MinecraftServer;
 
 import java.util.logging.Logger;
 
@@ -22,11 +20,11 @@ public class LogUtil {
     }
 
     public Logger getLogger() {
-        return GrimAPI.INSTANCE.getPlugin().getLogger();
+        return Logger.getLogger("GrimAC");
     }
 
     public void console(final String info) {
-        Bukkit.getConsoleSender().sendMessage(ChatColor.translateAlternateColorCodes('&', info));
+        MinecraftServer.getCommandManager().getConsoleSender().sendMessage(info);
     }
 
 }

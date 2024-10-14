@@ -1,7 +1,7 @@
 package ac.grim.grimac.utils.collisions;
 
 import ac.grim.grimac.utils.collisions.datatypes.SimpleCollisionBox;
-import com.github.retrooper.packetevents.protocol.world.BlockFace;
+import ac.grim.grimac.utils.minestom.BlockFace;
 
 public enum AxisUtil {
     EAST(box -> {

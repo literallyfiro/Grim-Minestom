@@ -1,10 +1,11 @@
 package ac.grim.grimac.utils.team;
 
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.protocol.player.UserProfile;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams;
 import lombok.Getter;
+import net.minestom.server.entity.Player;
+import net.minestom.server.network.packet.server.play.TeamsPacket;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -14,29 +15,38 @@ public final class EntityTeam {
     private final GrimPlayer player;
     @Getter private final String name;
     @Getter private final Set<String> entries = new HashSet<>();
-    @Getter private WrapperPlayServerTeams.CollisionRule collisionRule;
+    @Getter private TeamsPacket.CollisionRule collisionRule;
 
     public EntityTeam(GrimPlayer player, String name) {
         this.player = player;
         this.name = name;
     }
 
-    public void update(WrapperPlayServerTeams teams) {
-        teams.getTeamInfo().ifPresent(info -> this.collisionRule = info.getCollisionRule());
+    public void update(TeamsPacket teams) {
+        if (teams.action() instanceof TeamsPacket.CreateTeamAction || teams.action() instanceof TeamsPacket.UpdateTeamAction) {
+            TeamsPacket.CollisionRule collisionRule1 = teams.action() instanceof TeamsPacket.CreateTeamAction ?
+                    ((TeamsPacket.CreateTeamAction) teams.action()).collisionRule() :
+                    ((TeamsPacket.UpdateTeamAction) teams.action()).collisionRule();
+            if (collisionRule1 != null) {
+                this.collisionRule = collisionRule1;
+            }
+        }
 
-        final WrapperPlayServerTeams.TeamMode mode = teams.getTeamMode();
-        if (mode == WrapperPlayServerTeams.TeamMode.ADD_ENTITIES || mode == WrapperPlayServerTeams.TeamMode.CREATE) {
+        if (teams.action() instanceof TeamsPacket.AddEntitiesToTeamAction || teams.action() instanceof TeamsPacket.CreateTeamAction) {
             final TeamHandler teamHandler = player.checkManager.getPacketCheck(TeamHandler.class);
-            for (String teamsPlayer : teams.getPlayers()) {
-                if (teamsPlayer.equals(player.user.getName())) {
+            Collection<String> entities = teams.action() instanceof TeamsPacket.AddEntitiesToTeamAction ?
+                    ((TeamsPacket.AddEntitiesToTeamAction) teams.action()).entities() :
+                    ((TeamsPacket.CreateTeamAction) teams.action()).entities();
+            for (String teamsPlayer : entities) {
+                if (teamsPlayer.equals(player.getName())) {
                     player.teamName = name;
                     continue;
                 }
 
                 boolean flag = false;
-                for (UserProfile profile : player.compensatedEntities.profiles.values()) {
+                for (Player profile : player.compensatedEntities.profiles.values()) {
                     if (profile.getName() != null && profile.getName().equals(teamsPlayer)) {
-                        teamHandler.addEntityToTeam(profile.getUUID().toString(), this);
+                        teamHandler.addEntityToTeam(profile.getUuid().toString(), this);
                         flag = true;
                     }
                 }
@@ -45,9 +55,9 @@ public final class EntityTeam {
 
                 teamHandler.addEntityToTeam(teamsPlayer, this);
             }
-        } else if (mode == WrapperPlayServerTeams.TeamMode.REMOVE_ENTITIES) {
-            for (String teamsPlayer : teams.getPlayers()) {
-                if (teamsPlayer.equals(player.user.getName())) {
+        } else if (teams.action() instanceof TeamsPacket.RemoveEntitiesToTeamAction action) {
+            for (String teamsPlayer : action.entities()) {
+                if (teamsPlayer.equals(player.getName())) {
                     player.teamName = null;
                     continue;
                 }

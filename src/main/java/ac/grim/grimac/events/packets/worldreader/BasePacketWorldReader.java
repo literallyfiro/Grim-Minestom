@@ -4,108 +4,128 @@ import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.chunks.Column;
 import ac.grim.grimac.utils.data.TeleportData;
-import com.github.retrooper.packetevents.event.PacketListenerAbstract;
-import com.github.retrooper.packetevents.event.PacketListenerPriority;
-import com.github.retrooper.packetevents.event.PacketSendEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.world.chunk.BaseChunk;
-import com.github.retrooper.packetevents.util.Vector3i;
-import com.github.retrooper.packetevents.wrapper.play.server.*;
+import ac.grim.grimac.utils.minestom.EventPriority;
+import ac.grim.grimac.utils.minestom.WrapperPlayServerMultiBlockChange;
+import ac.grim.grimac.utils.minestom.chunk.CompensatedChunk;
+import ac.grim.grimac.utils.minestom.chunk.NetStreamInput;
+import net.minestom.server.coordinate.Point;
+import net.minestom.server.event.Event;
+import net.minestom.server.event.EventNode;
+import net.minestom.server.event.player.PlayerPacketOutEvent;
+import net.minestom.server.network.packet.server.play.AcknowledgeBlockChangePacket;
+import net.minestom.server.network.packet.server.play.BlockChangePacket;
+import net.minestom.server.network.packet.server.play.ChangeGameStatePacket;
+import net.minestom.server.network.packet.server.play.ChunkDataPacket;
+import net.minestom.server.network.packet.server.play.MultiBlockChangePacket;
+import net.minestom.server.network.packet.server.play.UnloadChunkPacket;
 
-public class BasePacketWorldReader extends PacketListenerAbstract {
+import java.io.ByteArrayInputStream;
 
-    public BasePacketWorldReader() {
-        super(PacketListenerPriority.HIGH);
+public class BasePacketWorldReader {
+
+//    public BasePacketWorldReader(EventNode<Event> eventNode) {
+//        super(PacketListenerPriority.HIGH);
+//    }
+
+    public BasePacketWorldReader(EventNode<Event> globalNode) {
+        EventNode<Event> node = EventNode.all("base-packet-world-reader");
+        node.setPriority(EventPriority.HIGH.ordinal());
+
+        node.addListener(PlayerPacketOutEvent.class, this::onPacketSend);
+
+        globalNode.addChild(node);
     }
 
-    @Override
-    public void onPacketSend(PacketSendEvent event) {
-        if (event.getPacketType() == PacketType.Play.Server.UNLOAD_CHUNK) {
-            WrapperPlayServerUnloadChunk unloadChunk = new WrapperPlayServerUnloadChunk(event);
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+    public void onPacketSend(PlayerPacketOutEvent event) {
+        if (event.getPacket() instanceof UnloadChunkPacket unloadChunk) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
 
-            unloadChunk(player, unloadChunk.getChunkX(), unloadChunk.getChunkZ());
+            unloadChunk(player, unloadChunk.chunkX(), unloadChunk.chunkZ());
         }
 
-        // 1.7 and 1.8 only
-        if (event.getPacketType() == PacketType.Play.Server.MAP_CHUNK_BULK) {
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+        if (event.getPacket() instanceof ChunkDataPacket packet) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
 
-            handleMapChunkBulk(player, event);
+            handleMapChunk(player, packet, event);
         }
 
-        if (event.getPacketType() == PacketType.Play.Server.CHUNK_DATA) {
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+        if (event.getPacket() instanceof BlockChangePacket packet) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
 
-            handleMapChunk(player, event);
+            handleBlockChange(player, packet);
         }
 
-        if (event.getPacketType() == PacketType.Play.Server.BLOCK_CHANGE) {
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+        if (event.getPacket() instanceof MultiBlockChangePacket packet) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
 
-            handleBlockChange(player, event);
+            handleMultiBlockChange(player, packet);
         }
 
-        if (event.getPacketType() == PacketType.Play.Server.MULTI_BLOCK_CHANGE) {
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+        if (event.getPacket() instanceof AcknowledgeBlockChangePacket changes) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
 
-            handleMultiBlockChange(player, event);
+            player.compensatedWorld.handlePredictionConfirmation(changes.sequence());
         }
 
-        if (event.getPacketType() == PacketType.Play.Server.ACKNOWLEDGE_BLOCK_CHANGES) {
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+//        if (event.getPacket() instanceof WrapperPlayServerAcknowledgePlayerDigging) {
+//            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
+//            if (player == null) return;
+//
+//            WrapperPlayServerAcknowledgePlayerDigging ack = new WrapperPlayServerAcknowledgePlayerDigging(event);
+//            player.compensatedWorld.handleBlockBreakAck(ack.getBlockPosition(), ack.getBlockId(), ack.getAction(), ack.isSuccessful());
+//        }
+
+        if (event.getPacket() instanceof ChangeGameStatePacket newState) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
-
-            WrapperPlayServerAcknowledgeBlockChanges changes = new WrapperPlayServerAcknowledgeBlockChanges(event);
-            player.compensatedWorld.handlePredictionConfirmation(changes.getSequence());
-        }
-
-        if (event.getPacketType() == PacketType.Play.Server.ACKNOWLEDGE_PLAYER_DIGGING) {
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
-            if (player == null) return;
-
-            WrapperPlayServerAcknowledgePlayerDigging ack = new WrapperPlayServerAcknowledgePlayerDigging(event);
-            player.compensatedWorld.handleBlockBreakAck(ack.getBlockPosition(), ack.getBlockId(), ack.getAction(), ack.isSuccessful());
-        }
-
-        if (event.getPacketType() == PacketType.Play.Server.CHANGE_GAME_STATE) {
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
-            if (player == null) return;
-
-            WrapperPlayServerChangeGameState newState = new WrapperPlayServerChangeGameState(event);
 
             player.latencyUtils.addRealTimeTask(player.lastTransactionSent.get(), () -> {
-                if (newState.getReason() == WrapperPlayServerChangeGameState.Reason.BEGIN_RAINING) {
+                if (newState.reason() == ChangeGameStatePacket.Reason.BEGIN_RAINING) {
                     player.compensatedWorld.isRaining = true;
-                } else if (newState.getReason() == WrapperPlayServerChangeGameState.Reason.END_RAINING) {
+                } else if (newState.reason() == ChangeGameStatePacket.Reason.END_RAINING) {
                     player.compensatedWorld.isRaining = false;
-                } else if (newState.getReason() == WrapperPlayServerChangeGameState.Reason.RAIN_LEVEL_CHANGE) {
-                    player.compensatedWorld.isRaining = newState.getValue() > 0.2f;
+                } else if (newState.reason() == ChangeGameStatePacket.Reason.RAIN_LEVEL_CHANGE) {
+                    player.compensatedWorld.isRaining = newState.value() > 0.2f;
                 }
             });
         }
     }
 
-    public void handleMapChunkBulk(GrimPlayer player, PacketSendEvent event) {
-        // Only exists in 1.7 and 1.8
-        WrapperPlayServerChunkDataBulk chunkData = new WrapperPlayServerChunkDataBulk(event);
-        for (int i = 0; i < chunkData.getChunks().length; i++) {
-            addChunkToCache(event, player, chunkData.getChunks()[i], true, chunkData.getX()[i], chunkData.getZ()[i]);
+    public CompensatedChunk[] read(NetStreamInput in, int chunkSize) {
+        CompensatedChunk[] chunks = new CompensatedChunk[chunkSize];
+
+        for (int index = 0; index < chunkSize; ++index) {
+            chunks[index] = CompensatedChunk.read(in);
         }
+
+        for (int i = 0; i < chunks.length; i++) {
+            CompensatedChunk chunk = chunks[i];
+            if (chunk != null) {
+                // I know I'm passing null into @NotNull, but it shouldn't affect anything.
+                chunks[i] = new CompensatedChunk(chunk.getBlockCount(), chunk.getChunkData(), null);
+            }
+        }
+
+        return chunks;
     }
 
-    public void handleMapChunk(GrimPlayer player, PacketSendEvent event) {
-        WrapperPlayServerChunkData chunkData = new WrapperPlayServerChunkData(event);
-        addChunkToCache(event, player, chunkData.getColumn().getChunks(), chunkData.getColumn().isFullChunk(), chunkData.getColumn().getX(), chunkData.getColumn().getZ());
-        event.setLastUsedWrapper(null);
+    public void handleMapChunk(GrimPlayer player, ChunkDataPacket chunkData, PlayerPacketOutEvent event) {
+        int x = chunkData.chunkX();
+        int z = chunkData.chunkZ();
+
+        int height = player.bukkitPlayer.getDimensionType().height() >> 4;
+
+        CompensatedChunk[] chunks = read(new NetStreamInput(new ByteArrayInputStream(chunkData.chunkData().data())), height);
+
+        addChunkToCache(event, player, chunks, true, x, z);
     }
 
-    public void addChunkToCache(PacketSendEvent event, GrimPlayer player, BaseChunk[] chunks, boolean isGroundUp, int chunkX, int chunkZ) {
+    public void addChunkToCache(PlayerPacketOutEvent event, GrimPlayer player, CompensatedChunk[] chunks, boolean isGroundUp, int chunkX, int chunkZ) {
         double chunkCenterX = (chunkX << 4) + 8;
         double chunkCenterZ = (chunkZ << 4) + 8;
         boolean shouldPostTrans = Math.abs(player.x - chunkCenterX) < 16 && Math.abs(player.z - chunkCenterZ) < 16;
@@ -144,26 +164,23 @@ public class BasePacketWorldReader extends PacketListenerAbstract {
         player.compensatedWorld.removeChunkLater(x, z);
     }
 
-    public void handleBlockChange(GrimPlayer player, PacketSendEvent event) {
-        WrapperPlayServerBlockChange blockChange = new WrapperPlayServerBlockChange(event);
+    public void handleBlockChange(GrimPlayer player, BlockChangePacket blockChange) {
         int range = 16;
-
-        Vector3i blockPosition = blockChange.getBlockPosition();
+        Point blockPosition = blockChange.blockPosition();
         // Don't spam transactions (block changes are sent in batches)
-        if (Math.abs(blockPosition.getX() - player.x) < range && Math.abs(blockPosition.getY() - player.y) < range && Math.abs(blockPosition.getZ() - player.z) < range &&
+        if (Math.abs(blockPosition.blockX() - player.x) < range && Math.abs(blockPosition.blockY() - player.y) < range && Math.abs(blockPosition.blockZ() - player.z) < range &&
                 player.lastTransSent + 2 < System.currentTimeMillis())
             player.sendTransaction();
 
-        player.latencyUtils.addRealTimeTask(player.lastTransactionSent.get(), () -> player.compensatedWorld.updateBlock(blockPosition.getX(), blockPosition.getY(), blockPosition.getZ(), blockChange.getBlockId()));
+        player.latencyUtils.addRealTimeTask(player.lastTransactionSent.get(), () -> player.compensatedWorld.updateBlock(blockPosition.blockX(), blockPosition.blockY(), blockPosition.blockZ(), blockChange.blockStateId()));
     }
 
-    public void handleMultiBlockChange(GrimPlayer player, PacketSendEvent event) {
-        WrapperPlayServerMultiBlockChange multiBlockChange = new WrapperPlayServerMultiBlockChange(event);
-
+    public void handleMultiBlockChange(GrimPlayer player, MultiBlockChangePacket multiBlockChange) {
         boolean didSend = false;
         int range = 16;
 
-        for (WrapperPlayServerMultiBlockChange.EncodedBlock blockChange : multiBlockChange.getBlocks()) {
+        WrapperPlayServerMultiBlockChange multiBlockChangeWrapper = new WrapperPlayServerMultiBlockChange(multiBlockChange);
+        for (WrapperPlayServerMultiBlockChange.EncodedBlock blockChange : multiBlockChangeWrapper.getBlocks()) {
             // Don't send a transaction unless it's within 16 blocks of the player
             if (!didSend && Math.abs(blockChange.getX() - player.x) < range && Math.abs(blockChange.getY() - player.y) < range && Math.abs(blockChange.getZ() - player.z) < range &&
                     player.lastTransSent + 2 < System.currentTimeMillis()) {

@@ -4,12 +4,11 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
 import ac.grim.grimac.utils.data.packetentity.PacketEntity;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
+import net.minestom.server.entity.EntityType;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.play.ClientInteractEntityPacket;
 
 @CheckData(name = "BadPacketsM", experimental = true)
 public class BadPacketsM extends Check implements PacketCheck {
@@ -22,39 +21,33 @@ public class BadPacketsM extends Check implements PacketCheck {
     private boolean sentInteractAt = false;
 
     @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
-        if (event.getPacketType() == PacketType.Play.Client.INTERACT_ENTITY && !exempt) {
-
-            final WrapperPlayClientInteractEntity wrapper = new WrapperPlayClientInteractEntity(event);
-
-            final PacketEntity entity = player.compensatedEntities.entityMap.get(wrapper.getEntityId());
+    public void onPacketReceive(PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientInteractEntityPacket wrapper && !exempt) {
+            final PacketEntity entity = player.compensatedEntities.entityMap.get(wrapper.targetId());
 
             // For armor stands, vanilla clients send:
             //  - when renaming the armor stand or in spectator mode: INTERACT_AT + INTERACT
             //  - in all other cases: only INTERACT
             // Just exempt armor stands to be safe
-            if (entity != null && entity.getType() == EntityTypes.ARMOR_STAND) return;
+            if (entity != null && entity.getType() == EntityType.ARMOR_STAND) return;
 
-            switch (wrapper.getAction()) {
-                // INTERACT_AT then INTERACT
-                case INTERACT:
-                    if (!sentInteractAt) {
-                        if (flagAndAlert("Missed Interact-At") && shouldModifyPackets()) {
-                            event.setCancelled(true);
-                            player.onPacketCancel();
-                        }
+            // INTERACT_AT then INTERACT
+            if (wrapper.type() instanceof ClientInteractEntityPacket.Interact) {
+                if (!sentInteractAt) {
+                    if (flagAndAlert("Missed Interact-At") && shouldModifyPackets()) {
+                        event.setCancelled(true);
+                        player.onPacketCancel();
                     }
-                    sentInteractAt = false;
-                    break;
-                case INTERACT_AT:
-                    if (sentInteractAt) {
-                        if (flagAndAlert("Missed Interact") && shouldModifyPackets()) {
-                            event.setCancelled(true);
-                            player.onPacketCancel();
-                        }
+                }
+                sentInteractAt = false;
+            } else if (wrapper.type() instanceof ClientInteractEntityPacket.InteractAt) {
+                if (sentInteractAt) {
+                    if (flagAndAlert("Missed Interact") && shouldModifyPackets()) {
+                        event.setCancelled(true);
+                        player.onPacketCancel();
                     }
-                    sentInteractAt = true;
-                    break;
+                }
+                sentInteractAt = true;
             }
         }
     }

@@ -1,17 +1,23 @@
 package ac.grim.grimac.commands;
 
 import ac.grim.grimac.GrimAPI;
-import co.aikar.commands.BaseCommand;
-import co.aikar.commands.annotation.CommandAlias;
-import co.aikar.commands.annotation.CommandPermission;
-import co.aikar.commands.annotation.Subcommand;
-import org.bukkit.entity.Player;
+import net.minestom.server.command.builder.Command;
+import net.minestom.server.entity.Player;
 
-@CommandAlias("grim|grimac")
-public class GrimVerbose extends BaseCommand {
-    @Subcommand("verbose")
-    @CommandPermission("grim.verbose")
-    public void onVerbose(Player player) {
-        GrimAPI.INSTANCE.getAlertManager().toggleVerbose(player);
+public class GrimVerbose extends Command {
+
+    public GrimVerbose() {
+        super("verbose");
+        setCondition((sender, commandString) -> {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage("&cError: Console may not execute this command.");
+                return false;
+            }
+            return sender.hasPermission("grim.verbose");
+        });
+
+        addSyntax((sender, context) -> {
+            GrimAPI.INSTANCE.getAlertManager().toggleVerbose((Player) sender);
+        });
     }
 }

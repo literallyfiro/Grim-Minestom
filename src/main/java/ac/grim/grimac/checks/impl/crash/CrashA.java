@@ -4,8 +4,8 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
+import ac.grim.grimac.utils.WrapperPlayClientPlayerFlying;
+import net.minestom.server.event.player.PlayerPacketEvent;
 
 @CheckData(name = "CrashA")
 public class CrashA extends Check implements PacketCheck {
@@ -16,14 +16,14 @@ public class CrashA extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
+    public void onPacketReceive(PlayerPacketEvent event) {
         if (player.packetStateData.lastPacketWasTeleport) return;
-        if (WrapperPlayClientPlayerFlying.isFlying(event.getPacketType())) {
+        if (WrapperPlayClientPlayerFlying.isFlying(event.getPacket())) {
             WrapperPlayClientPlayerFlying packet = new WrapperPlayClientPlayerFlying(event);
 
             if (!packet.hasPositionChanged()) return;
             // Y technically is uncapped, but no player will reach these values legit
-            if (Math.abs(packet.getLocation().getX()) > HARD_CODED_BORDER || Math.abs(packet.getLocation().getZ()) > HARD_CODED_BORDER || Math.abs(packet.getLocation().getY()) > Integer.MAX_VALUE) {
+            if (Math.abs(packet.getLocation().x()) > HARD_CODED_BORDER || Math.abs(packet.getLocation().z()) > HARD_CODED_BORDER || Math.abs(packet.getLocation().y()) > Integer.MAX_VALUE) {
                 flagAndAlert(); // Ban
                 player.getSetbackTeleportUtil().executeViolationSetback();
                 event.setCancelled(true);

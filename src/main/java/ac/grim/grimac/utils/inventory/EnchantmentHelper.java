@@ -1,38 +1,38 @@
 package ac.grim.grimac.utils.inventory;
 
+import ac.grim.grimac.utils.EnchantmentUtils;
 import ac.grim.grimac.utils.latency.CompensatedInventory;
-import com.github.retrooper.packetevents.protocol.item.ItemStack;
-import com.github.retrooper.packetevents.protocol.item.enchantment.type.EnchantmentType;
-import com.github.retrooper.packetevents.protocol.item.enchantment.type.EnchantmentTypes;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import net.minestom.server.item.ItemStack;
+import net.minestom.server.item.enchant.Enchantment;
+import net.minestom.server.registry.DynamicRegistry;
 
 public class EnchantmentHelper {
-    public static boolean isCurse(EnchantmentType type) {
-        return type == EnchantmentTypes.BINDING_CURSE || type == EnchantmentTypes.VANISHING_CURSE;
+    public static boolean isCurse(DynamicRegistry.Key<Enchantment> type) {
+        return type == Enchantment.BINDING_CURSE || type == Enchantment.VANISHING_CURSE;
     }
 
     // Some enchants work on any armor piece but only the maximum level counts
-    public static int getMaximumEnchantLevel(CompensatedInventory inventory, EnchantmentType enchantmentType, ClientVersion clientVersion) {
+    public static int getMaximumEnchantLevel(CompensatedInventory inventory, DynamicRegistry.Key<Enchantment> enchantmentType) {
         int maxEnchantLevel = 0;
 
-        ItemStack helmet = inventory.getHelmet();
-        if (helmet != ItemStack.EMPTY) {
-            maxEnchantLevel = Math.max(maxEnchantLevel, helmet.getEnchantmentLevel(enchantmentType, clientVersion));
+        ModifiableItemStack helmet = inventory.getHelmet();
+        if (helmet.getItemStack() != ItemStack.AIR) {
+            maxEnchantLevel = Math.max(maxEnchantLevel, EnchantmentUtils.getEnchantmentLevel(helmet.getItemStack(), enchantmentType));
         }
 
-        ItemStack chestplate = inventory.getChestplate();
-        if (chestplate != ItemStack.EMPTY) {
-            maxEnchantLevel = Math.max(maxEnchantLevel, chestplate.getEnchantmentLevel(enchantmentType, clientVersion));
+        ModifiableItemStack chestplate = inventory.getChestplate();
+        if (chestplate.getItemStack() != ItemStack.AIR) {
+            maxEnchantLevel = Math.max(maxEnchantLevel, EnchantmentUtils.getEnchantmentLevel(chestplate.getItemStack(), enchantmentType));
         }
 
-        ItemStack leggings = inventory.getLeggings();
-        if (leggings != ItemStack.EMPTY) {
-            maxEnchantLevel = Math.max(maxEnchantLevel, leggings.getEnchantmentLevel(enchantmentType, clientVersion));
+        ModifiableItemStack leggings = inventory.getLeggings();
+        if (leggings.getItemStack() != ItemStack.AIR) {
+            maxEnchantLevel = Math.max(maxEnchantLevel, EnchantmentUtils.getEnchantmentLevel(leggings.getItemStack(), enchantmentType));
         }
 
-        ItemStack boots = inventory.getBoots();
-        if (boots != ItemStack.EMPTY) {
-            maxEnchantLevel = Math.max(maxEnchantLevel, boots.getEnchantmentLevel(enchantmentType, clientVersion));
+        ModifiableItemStack boots = inventory.getBoots();
+        if (boots.getItemStack() != ItemStack.AIR) {
+            maxEnchantLevel = Math.max(maxEnchantLevel, EnchantmentUtils.getEnchantmentLevel(boots.getItemStack(), enchantmentType));
         }
 
         return maxEnchantLevel;

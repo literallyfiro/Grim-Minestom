@@ -1,8 +1,7 @@
 package ac.grim.grimac.utils.data;
 
-import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.util.Vector3d;
+import net.minestom.server.coordinate.Point;
+import net.minestom.server.coordinate.Vec;
 
 public final class TrackedPosition {
 
@@ -10,7 +9,7 @@ public final class TrackedPosition {
     private static final double LEGACY_COORDINATE_SCALE = 32.0;
 
     private final double scale;
-    private Vector3d pos = new Vector3d();
+    private Point pos = new Vec(0, 0, 0);
 
     public TrackedPosition() {
 //        this.scale = player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_9) ? MODERN_COORDINATE_SCALE : LEGACY_COORDINATE_SCALE;
@@ -37,31 +36,31 @@ public final class TrackedPosition {
         return value / scale;
     }
 
-    public Vector3d getPos() {
+    public Point getPos() {
         return pos;
     }
 
     // Method since 1.16.
-    public Vector3d withDelta(long x, long y, long z) {
+    public Point withDelta(long x, long y, long z) {
         if (x == 0L && y == 0L && z == 0L) {
             return this.pos;
         }
 
-        double d = x == 0L ? this.pos.x : unpack(pack(this.pos.x, scale) + x);
-        double e = y == 0L ? this.pos.y : unpack(pack(this.pos.y, scale) + y);
-        double f = z == 0L ? this.pos.z : unpack(pack(this.pos.z, scale) + z);
-        return new Vector3d(d, e, f);
+        double d = x == 0L ? this.pos.x() : unpack(pack(this.pos.x(), scale) + x);
+        double e = y == 0L ? this.pos.y() : unpack(pack(this.pos.y(), scale) + y);
+        double f = z == 0L ? this.pos.z() : unpack(pack(this.pos.z(), scale) + z);
+        return new Vec(d, e, f);
     }
 
     // In 1.16-, this was different.
-    public Vector3d withDeltaLegacy(double x, double y, double z) {
-        double d = unpackLegacy(packLegacy(this.pos.x, scale) + x);
-        double e = unpackLegacy(packLegacy(this.pos.y, scale) + y);
-        double f = unpackLegacy(packLegacy(this.pos.z, scale) + z);
-        return new Vector3d(d, e, f);
+    public Point withDeltaLegacy(double x, double y, double z) {
+        double d = unpackLegacy(packLegacy(this.pos.x(), scale) + x);
+        double e = unpackLegacy(packLegacy(this.pos.y(), scale) + y);
+        double f = unpackLegacy(packLegacy(this.pos.z(), scale) + z);
+        return new Vec(d, e, f);
     }
 
-    public void setPos(Vector3d pos) {
+    public void setPos(Point pos) {
         this.pos = pos;
     }
 }

@@ -1,7 +1,7 @@
 package ac.grim.grimac.utils.data.tags;
 
-import com.github.retrooper.packetevents.resources.ResourceLocation;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTags;
+import net.minestom.server.gamedata.tags.Tag;
+import net.minestom.server.utils.NamespaceID;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -9,22 +9,22 @@ import java.util.function.Function;
 
 public final class SyncedTag<T> {
 
-    private final ResourceLocation location;
+    private final NamespaceID location;
     private final Set<T> values;
-    private final Function<Integer, T> remapper;
+    private final Function<NamespaceID, T> remapper;
 
-    private SyncedTag(ResourceLocation location, Function<Integer, T> remapper, Set<T> defaultValues) {
+    private SyncedTag(NamespaceID location, Function<NamespaceID, T> remapper, Set<T> defaultValues) {
         this.location = location;
         this.values = new HashSet<>();
         this.remapper = remapper;
         this.values.addAll(defaultValues);
     }
 
-    public static <T> Builder<T> builder(ResourceLocation location) {
+    public static <T> Builder<T> builder(NamespaceID location) {
         return new Builder<>(location);
     }
 
-    public ResourceLocation location() {
+    public NamespaceID location() {
         return location;
     }
 
@@ -32,24 +32,24 @@ public final class SyncedTag<T> {
         return values.contains(value);
     }
 
-    public void readTagValues(WrapperPlayServerTags.Tag tag) {
+    public void readTagValues(Tag tag) {
         // Server is sending tag replacement, clear default values.
         values.clear();
-        for (int id : tag.getValues()) {
+        for (NamespaceID id : tag.getValues()) {
             values.add(remapper.apply(id));
         }
     }
 
     public static final class Builder<T> {
-        private final ResourceLocation location;
-        private Function<Integer, T> remapper;
+        private final NamespaceID location;
+        private Function<NamespaceID, T> remapper;
         private Set<T> defaultValues;
 
-        private Builder(ResourceLocation location) {
+        private Builder(NamespaceID location) {
             this.location = location;
         }
 
-        public Builder<T> remapper(Function<Integer, T> remapper) {
+        public Builder<T> remapper(Function<NamespaceID, T> remapper) {
             this.remapper = remapper;
             return this;
         }

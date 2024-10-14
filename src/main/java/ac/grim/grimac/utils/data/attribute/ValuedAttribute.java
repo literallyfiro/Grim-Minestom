@@ -1,17 +1,19 @@
 package ac.grim.grimac.utils.data.attribute;
 
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
 import ac.grim.grimac.utils.math.GrimMath;
-import com.github.retrooper.packetevents.protocol.attribute.Attribute;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUpdateAttributes;
+import net.kyori.adventure.key.Key;
+import net.minestom.server.entity.attribute.Attribute;
+import net.minestom.server.entity.attribute.AttributeModifier;
+import net.minestom.server.network.packet.server.play.EntityAttributesPacket;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-
-import static ac.grim.grimac.utils.latency.CompensatedEntities.SPRINTING_MODIFIER_UUID;
 
 public final class ValuedAttribute {
 
@@ -22,7 +24,7 @@ public final class ValuedAttribute {
     // These seem to be clamped on the client, but not the server
     private final double min, max;
 
-    private WrapperPlayServerUpdateAttributes.Property lastProperty;
+    private EntityAttributesPacket.Property lastProperty;
     private final double defaultValue;
     private double value;
 
@@ -92,7 +94,7 @@ public final class ValuedAttribute {
     }
 
     @Deprecated // Avoid using this, it only exists for special cases
-    public Optional<WrapperPlayServerUpdateAttributes.Property> property() {
+    public Optional<EntityAttributesPacket.Property> property() {
         return Optional.ofNullable(lastProperty);
     }
 
@@ -100,25 +102,27 @@ public final class ValuedAttribute {
         with(lastProperty);
     }
 
-    public double with(WrapperPlayServerUpdateAttributes.Property property) {
-        double baseValue = property.getValue();
+    public double with(EntityAttributesPacket.Property property) {
+        double baseValue = property.value();
         double additionSum = 0;
         double multiplyBaseSum = 0;
         double multiplyTotalProduct = 1.0;
 
-        List<WrapperPlayServerUpdateAttributes.PropertyModifier> modifiers = property.getModifiers();
-        modifiers.removeIf(modifier -> modifier.getUUID().equals(SPRINTING_MODIFIER_UUID) || modifier.getName().getKey().equals("sprinting"));
+        Collection<AttributeModifier> modifiersC = property.modifiers();
+        // todo check if it works modifiers.removeIf(modifier -> modifier.getUUid().equals(SPRINTING_MODIFIER_UUID) || modifier.id().key().equals(Key.key("sprinting")));
+        List<AttributeModifier> modifiers = new ArrayList<>(modifiersC);
+        modifiers.removeIf(modifier -> modifier.id().value().equals("sprinting"));
 
-        for (WrapperPlayServerUpdateAttributes.PropertyModifier modifier : modifiers) {
-            switch (modifier.getOperation()) {
-                case ADDITION:
-                    additionSum += modifier.getAmount();
+        for (AttributeModifier modifier : modifiers) {
+            switch (modifier.operation()) {
+                case ADD_VALUE:
+                    additionSum += modifier.amount();
                     break;
                 case MULTIPLY_BASE:
-                    multiplyBaseSum += modifier.getAmount();
+                    multiplyBaseSum += modifier.amount();
                     break;
                 case MULTIPLY_TOTAL:
-                    multiplyTotalProduct *= (1.0 + modifier.getAmount());
+                    multiplyTotalProduct *= (1.0 + modifier.amount());
                     break;
             }
         }

@@ -2,72 +2,87 @@ package ac.grim.grimac.commands;
 
 import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.player.GrimPlayer;
-import co.aikar.commands.BaseCommand;
-import co.aikar.commands.annotation.*;
-import co.aikar.commands.bukkit.contexts.OnlinePlayer;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.protocol.player.User;
-import org.bukkit.ChatColor;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.ConsoleCommandSender;
-import org.bukkit.entity.Player;
+import ac.grim.grimac.utils.anticheat.MessageUtil;
+import ac.grim.grimac.utils.nmsutil.ChatUtil;
+import net.minestom.server.command.CommandSender;
+import net.minestom.server.command.ConsoleSender;
+import net.minestom.server.command.builder.Command;
+import net.minestom.server.command.builder.arguments.ArgumentType;
+import net.minestom.server.entity.Player;
 
-@CommandAlias("grim|grimac")
-public class GrimDebug extends BaseCommand {
-    @Subcommand("debug")
-    @CommandPermission("grim.debug")
-    @CommandCompletion("@players")
-    public void onDebug(CommandSender sender, @Optional OnlinePlayer target) {
-        Player player = null;
-        if (sender instanceof Player) player = (Player) sender;
+public class GrimDebug {
 
-        GrimPlayer grimPlayer = parseTarget(sender, player, target);
-        if (grimPlayer == null) return;
+    private GrimDebug() {}
 
-        if (sender instanceof ConsoleCommandSender) { // Just debug to console to reduce complexity...
-            grimPlayer.checkManager.getDebugHandler().toggleConsoleOutput();
-        } else { // This sender is a player
-            grimPlayer.checkManager.getDebugHandler().toggleListener(player);
-        }
-    }
-
-    private GrimPlayer parseTarget(CommandSender sender, Player player, OnlinePlayer target) {
-        Player targetPlayer = target == null ? player : target.getPlayer();
+    private static GrimPlayer parseTarget(CommandSender sender, Player player, Player target) {
+        Player targetPlayer = target == null ? player : target;
         if (player == null && target == null) {
-            sender.sendMessage(ChatColor.RED + "You must specify a target as the console!");
+            sender.sendMessage(ChatUtil.translateAlternateColorCodes("&cYou must specify a target as the console!"));
             return null;
         }
 
         GrimPlayer grimPlayer = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(targetPlayer);
         if (grimPlayer == null) {
-            User user = PacketEvents.getAPI().getPlayerManager().getUser(targetPlayer);
-            sender.sendMessage(ChatColor.RED + "This player is exempt from all checks!");
+            sender.sendMessage(ChatUtil.translateAlternateColorCodes("&cThis player is exempt from all checks!"));
 
-            if (user == null) {
-                sender.sendMessage(ChatColor.RED + "Unknown PacketEvents user");
-            } else {
-                boolean isExempt = GrimAPI.INSTANCE.getPlayerDataManager().shouldCheck(user);
-                if (!isExempt) {
-                    sender.sendMessage(ChatColor.RED + "User connection state: " + user.getConnectionState());
-                }
+            boolean isExempt = GrimAPI.INSTANCE.getPlayerDataManager().shouldCheck(targetPlayer);
+            if (!isExempt) {
+                sender.sendMessage(ChatUtil.translateAlternateColorCodes("&cUser connection state: " + targetPlayer.getPlayerConnection().getConnectionState().name()));
             }
         }
 
         return grimPlayer;
     }
 
-    @Subcommand("consoledebug")
-    @CommandPermission("grim.consoledebug")
-    @CommandCompletion("@players")
-    public void onConsoleDebug(CommandSender sender, @Optional OnlinePlayer target) {
-        Player player = null;
-        if (sender instanceof Player) player = (Player) sender;
+    public static class GrimPlayerDebug extends Command {
+        public GrimPlayerDebug() {
+            super("debug");
+            setCondition((sender, commandString) -> sender.hasPermission("grim.debug"));
+            addSyntax((sender, context) -> {
+                sender.sendMessage(MessageUtil.format("&eUsage: &agrim debug &f<player>"));
+            });
 
-        GrimPlayer grimPlayer = parseTarget(sender, player, target);
-        if (grimPlayer == null) return;
+            var playerArgument = ArgumentType.Entity("target");
+            addSyntax((sender, context) -> {
+                Player player = null;
+                if (sender instanceof Player) player = (Player) sender;
 
-        boolean isOutput = grimPlayer.checkManager.getDebugHandler().toggleConsoleOutput();
+                Player target = context.get(playerArgument).findFirstPlayer(sender);
 
-        sender.sendMessage("Console output for " + (grimPlayer.bukkitPlayer == null ? grimPlayer.user.getProfile().getName() : grimPlayer.bukkitPlayer.getName()) + " is now " + isOutput);
+                GrimPlayer grimPlayer = parseTarget(sender, player, target);
+                if (grimPlayer == null) return;
+
+                if (sender instanceof ConsoleSender) { // Just debug to console to reduce complexity...
+                    grimPlayer.checkManager.getDebugHandler().toggleConsoleOutput();
+                } else if (sender instanceof Player) { // This sender is a player
+                    grimPlayer.checkManager.getDebugHandler().toggleListener((Player) sender);
+                }
+            }, playerArgument);
+        }
+    }
+
+    public static class GrimConsoleDebug extends Command {
+        public GrimConsoleDebug() {
+            super("consoledebug");
+            setCondition((sender, commandString) -> sender.hasPermission("grim.consoledebug"));
+            addSyntax((sender, context) -> {
+                sender.sendMessage(MessageUtil.format("&eUsage: &agrim consoledebug &f<player>"));
+            });
+
+            var playerArgument = ArgumentType.Entity("target");
+            addSyntax((sender, context) -> {
+                Player player = null;
+                if (sender instanceof Player) player = (Player) sender;
+
+                Player target = context.get(playerArgument).findFirstPlayer(sender);
+
+                GrimPlayer grimPlayer = parseTarget(sender, player, target);
+                if (grimPlayer == null) return;
+
+                boolean isOutput = grimPlayer.checkManager.getDebugHandler().toggleConsoleOutput();
+
+                sender.sendMessage("Console output for " + grimPlayer.bukkitPlayer.getName() + " is now " + isOutput);
+            }, playerArgument);
+        }
     }
 }

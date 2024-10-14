@@ -5,10 +5,10 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
+import ac.grim.grimac.utils.WrapperPlayClientPlayerFlying;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.ClientPacket;
+import net.minestom.server.network.packet.client.common.ClientPongPacket;
 
 @CheckData(name = "Timer", configName = "TimerA", setback = 10)
 public class TimerCheck extends Check implements PacketCheck {
@@ -58,14 +58,14 @@ public class TimerCheck extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketReceive(final PacketReceiveEvent event) {
-        if (hasGottenMovementAfterTransaction && checkForTransaction(event.getPacketType())) {
+    public void onPacketReceive(final PlayerPacketEvent event) {
+        if (hasGottenMovementAfterTransaction && checkForTransaction(event.getPacket())) {
             knownPlayerClockTime = lastMovementPlayerClock;
             lastMovementPlayerClock = player.getPlayerClockAtLeast();
             hasGottenMovementAfterTransaction = false;
         }
 
-        if (!shouldCountPacketForTimer(event.getPacketType())) return;
+        if (!shouldCountPacketForTimer(event.getPacket())) return;
 
         hasGottenMovementAfterTransaction = true;
         timerBalanceRealTime += 50e6;
@@ -74,7 +74,7 @@ public class TimerCheck extends Check implements PacketCheck {
     }
 
 
-    public void doCheck(final PacketReceiveEvent event) {
+    public void doCheck(final PlayerPacketEvent event) {
         final double transactionPing = player.getTransactionPing();
         // Limit using transaction ping if over 1000ms (default)
         final boolean needsAdjustment = limitAbuseOverPing != -1 && transactionPing >= limitAbuseOverPing;
@@ -104,12 +104,11 @@ public class TimerCheck extends Check implements PacketCheck {
         timerBalanceRealTime = Math.max(timerBalanceRealTime, lastMovementPlayerClock - clockDrift);
     }
 
-    public boolean checkForTransaction(PacketTypeCommon packetType) {
-        return packetType == PacketType.Play.Client.PONG ||
-                packetType == PacketType.Play.Client.WINDOW_CONFIRMATION;
+    public boolean checkForTransaction(ClientPacket packetType) {
+        return packetType instanceof ClientPongPacket;
     }
 
-    public boolean shouldCountPacketForTimer(PacketTypeCommon packetType) {
+    public boolean shouldCountPacketForTimer(ClientPacket packetType) {
         // If not flying, or this was a teleport, or this was a duplicate 1.17 mojang stupidity packet
         return WrapperPlayClientPlayerFlying.isFlying(packetType) &&
                 !player.packetStateData.lastPacketWasTeleport && !player.packetStateData.lastPacketWasOnePointSeventeenDuplicate;

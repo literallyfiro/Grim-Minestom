@@ -1,13 +1,12 @@
 package ac.grim.grimac.utils.data.packetentity;
 
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
 import ac.grim.grimac.utils.data.attribute.ValuedAttribute;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.manager.server.ServerVersion;
-import com.github.retrooper.packetevents.protocol.attribute.Attributes;
-import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
-import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import net.minestom.server.entity.Entity;
+import net.minestom.server.entity.EntityType;
+import net.minestom.server.entity.attribute.Attribute;
+import net.minestom.server.entity.metadata.animal.ChestedHorseMeta;
 
 import java.util.UUID;
 
@@ -17,30 +16,31 @@ public class PacketEntityHorse extends PacketEntityTrackXRot {
     public boolean hasSaddle = false;
     public boolean isTame = false;
 
-    public PacketEntityHorse(GrimPlayer player, UUID uuid, EntityType type, double x, double y, double z, float xRot) {
+    public PacketEntityHorse(GrimPlayer player, UUID uuid, Entity type, double x, double y, double z, float xRot) {
         super(player, uuid, type, x, y, z, xRot);
-        setAttribute(Attributes.GENERIC_STEP_HEIGHT, 1.0f);
+        setAttribute(Attribute.GENERIC_STEP_HEIGHT, 1.0f);
 
         final boolean preAttribute = player.getClientVersion().isOlderThan(ClientVersion.V_1_20_5);
         // This was horse.jump_strength pre-attribute
-        trackAttribute(ValuedAttribute.ranged(Attributes.GENERIC_JUMP_STRENGTH, 0.7, 0, preAttribute ? 2 : 32)
+        trackAttribute(ValuedAttribute.ranged(Attribute.GENERIC_JUMP_STRENGTH, 0.7, 0, preAttribute ? 2 : 32)
                 .withSetRewriter((oldValue, newValue) -> {
                     // Seems viabackwards doesn't rewrite this (?)
-                    if (preAttribute && PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_20_5)) {
+                    if (preAttribute) {
                         return oldValue;
                     }
                     // Modern player OR an old server setting legacy horse.jump_strength attribute
                     return newValue;
                 }));
-        trackAttribute(ValuedAttribute.ranged(Attributes.GENERIC_MOVEMENT_SPEED, 0.225f, 0, 1024));
+        trackAttribute(ValuedAttribute.ranged(Attribute.GENERIC_MOVEMENT_SPEED, 0.225f, 0, 1024));
 
-        if (EntityTypes.isTypeInstanceOf(type, EntityTypes.CHESTED_HORSE)) {
-            setAttribute(Attributes.GENERIC_JUMP_STRENGTH, 0.5);
-            setAttribute(Attributes.GENERIC_MOVEMENT_SPEED, 0.175f);
+        if (type.getEntityMeta() instanceof ChestedHorseMeta) {
+            setAttribute(Attribute.GENERIC_JUMP_STRENGTH, 0.5);
+            setAttribute(Attribute.GENERIC_MOVEMENT_SPEED, 0.175f);
         }
 
-        if (type == EntityTypes.ZOMBIE_HORSE || type == EntityTypes.SKELETON_HORSE) {
-            setAttribute(Attributes.GENERIC_MOVEMENT_SPEED, 0.2f);
+        if (type.getEntityType() == EntityType.ZOMBIE_HORSE || type.getEntityType() == EntityType.SKELETON_HORSE) {
+            setAttribute(Attribute.GENERIC_MOVEMENT_SPEED, 0.2f);
         }
     }
+
 }

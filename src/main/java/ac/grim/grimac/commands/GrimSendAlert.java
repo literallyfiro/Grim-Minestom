@@ -3,25 +3,31 @@ package ac.grim.grimac.commands;
 import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.utils.anticheat.LogUtil;
 import ac.grim.grimac.utils.anticheat.MessageUtil;
-import co.aikar.commands.BaseCommand;
-import co.aikar.commands.annotation.CommandAlias;
-import co.aikar.commands.annotation.CommandPermission;
-import co.aikar.commands.annotation.Subcommand;
-import org.bukkit.entity.Player;
+import net.kyori.adventure.text.Component;
+import net.minestom.server.command.builder.Command;
+import net.minestom.server.command.builder.arguments.ArgumentType;
+import net.minestom.server.entity.Player;
 
-@CommandAlias("grim|grimac")
-public class GrimSendAlert extends BaseCommand {
-    @Subcommand("sendalert")
-    @CommandPermission("grim.sendalert")
-    public void sendAlert(String string) {
-        string = MessageUtil.format(string);
+public class GrimSendAlert extends Command {
+    public GrimSendAlert() {
+        super("sendalert");
+        setCondition((sender, commandString) -> sender.hasPermission("grim.sendalert"));
+        addSyntax((sender, context) -> {
+            sender.sendMessage(MessageUtil.format("&eUsage: &agrim sendalert &f<message>"));
+        });
 
-        for (Player bukkitPlayer : GrimAPI.INSTANCE.getAlertManager().getEnabledAlerts()) {
-            bukkitPlayer.sendMessage(string);
-        }
+        var stringArgument = ArgumentType.String("string");
+        addSyntax((sender, context) -> {
+            String string = context.get(stringArgument);
+            string = MessageUtil.format(string);
 
-        if (GrimAPI.INSTANCE.getConfigManager().isPrintAlertsToConsole()) {
-            LogUtil.console(string); // Print alert to console
-        }
+            for (Player bukkitPlayer : GrimAPI.INSTANCE.getAlertManager().getEnabledAlerts()) {
+                bukkitPlayer.sendMessage(Component.text(string));
+            }
+
+            if (GrimAPI.INSTANCE.getConfigManager().isPrintAlertsToConsole()) {
+                LogUtil.console(string); // Print alert to console
+            }
+        }, stringArgument);
     }
 }

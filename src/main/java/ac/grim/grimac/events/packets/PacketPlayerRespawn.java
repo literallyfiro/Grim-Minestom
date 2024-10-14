@@ -4,25 +4,24 @@ import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.checks.impl.badpackets.BadPacketsE;
 import ac.grim.grimac.checks.impl.badpackets.BadPacketsF;
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
 import ac.grim.grimac.utils.data.TrackerData;
 import ac.grim.grimac.utils.data.packetentity.PacketEntitySelf;
 import ac.grim.grimac.utils.enums.Pose;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.event.PacketListenerAbstract;
-import com.github.retrooper.packetevents.event.PacketListenerPriority;
-import com.github.retrooper.packetevents.event.PacketSendEvent;
-import com.github.retrooper.packetevents.manager.server.ServerVersion;
-import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.util.Vector3d;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerJoinGame;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerRespawn;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUpdateHealth;
-import org.bukkit.util.Vector;
+import ac.grim.grimac.utils.minestom.EventPriority;
+import ac.grim.grimac.utils.vector.MutableVector;
+import ac.grim.grimac.utils.vector.Vector3d;
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.entity.EntityType;
+import net.minestom.server.event.Event;
+import net.minestom.server.event.EventNode;
+import net.minestom.server.event.player.PlayerPacketOutEvent;
+import net.minestom.server.network.packet.server.play.JoinGamePacket;
+import net.minestom.server.network.packet.server.play.RespawnPacket;
+import net.minestom.server.network.packet.server.play.UpdateHealthPacket;
+import net.minestom.server.world.DimensionType;
 
 import java.util.List;
-import java.util.Objects;
 
 /**
  * PlayerRespawnS2CPacket info (1.20.2+):
@@ -43,79 +42,79 @@ import java.util.Objects;
  * Yaw is set to -180.
  */
 // TODO update for 1.20.2-
-public class PacketPlayerRespawn extends PacketListenerAbstract {
+public class PacketPlayerRespawn {
 
-    public PacketPlayerRespawn() {
-        super(PacketListenerPriority.HIGH);
+    public PacketPlayerRespawn(EventNode<Event> globalNode) {
+        EventNode<Event> node = EventNode.all("packet-player-respawn");
+        node.setPriority(EventPriority.HIGH.ordinal());
+
+        node.addListener(PlayerPacketOutEvent.class, this::onPacketSend);
+
+        globalNode.addChild(node);
     }
 
     private static final byte KEEP_ATTRIBUTES = 1;
     private static final byte KEEP_TRACKED_DATA = 2;
     private static final byte KEEP_ALL = 3;
 
-    private boolean hasFlag(WrapperPlayServerRespawn respawn, byte flag) {
+    private boolean hasFlag(RespawnPacket respawn, byte flag) {
         // This packet was added in 1.16
         // On versions older than 1.15, via does not keep all data.
         // https://github.com/ViaVersion/ViaVersion/blob/master/common/src/main/java/com/viaversion/viaversion/protocols/v1_15_2to1_16/rewriter/EntityPacketRewriter1_16.java#L124
-        if (PacketEvents.getAPI().getServerManager().getVersion().isOlderThan(ServerVersion.V_1_15)) {
-            return false;
-        }
-        return (respawn.getKeptData() & flag) != 0;
+        // todo minestom is this correct?
+        return (respawn.copyData() & flag) != 0;
     }
 
-    @Override
-    public void onPacketSend(PacketSendEvent event) {
-        if (event.getPacketType() == PacketType.Play.Server.UPDATE_HEALTH) {
-            WrapperPlayServerUpdateHealth health = new WrapperPlayServerUpdateHealth(event);
-
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+    public void onPacketSend(PlayerPacketOutEvent event) {
+        if (event.getPacket() instanceof UpdateHealthPacket health) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
             //
-            if (player.packetStateData.lastFood == health.getFood()
-                    && player.packetStateData.lastHealth == health.getHealth()
-                    && player.packetStateData.lastSaturation == health.getFoodSaturation()
-                    && PacketEvents.getAPI().getServerManager().getVersion().isOlderThan(ServerVersion.V_1_9)) return;
+//            if (player.packetStateData.lastFood == health.food()
+//                    && player.packetStateData.lastHealth == health.health()
+//                    && player.packetStateData.lastSaturation == health.foodSaturation()
+//                    && PacketEvents.getAPI().getServerManager().getVersion().isOlderThan(ServerVersion.V_1_9)) return;
 
-            player.packetStateData.lastFood = health.getFood();
-            player.packetStateData.lastHealth = health.getHealth();
-            player.packetStateData.lastSaturation = health.getFoodSaturation();
+            player.packetStateData.lastFood = health.food();
+            player.packetStateData.lastHealth = health.health();
+            player.packetStateData.lastSaturation = health.foodSaturation();
 
             player.sendTransaction();
 
-            if (health.getFood() == 20) { // Split so transaction before packet
+            if (health.food() == 20) { // Split so transaction before packet
                 player.latencyUtils.addRealTimeTask(player.lastTransactionReceived.get(), () -> player.food = 20);
             } else { // Split so transaction after packet
-                player.latencyUtils.addRealTimeTask(player.lastTransactionReceived.get() + 1, () -> player.food = health.getFood());
+                player.latencyUtils.addRealTimeTask(player.lastTransactionReceived.get() + 1, () -> player.food = health.food());
             }
 
-            if (health.getHealth() <= 0) {
+            if (health.health() <= 0) {
                 player.latencyUtils.addRealTimeTask(player.lastTransactionSent.get(), () -> player.compensatedEntities.getSelf().isDead = true);
             } else {
                 player.latencyUtils.addRealTimeTask(player.lastTransactionSent.get() + 1, () -> player.compensatedEntities.getSelf().isDead = false);
             }
 
+            // todo minestom same here
             event.getTasksAfterSend().add(player::sendTransaction);
         }
 
-        if (event.getPacketType() == PacketType.Play.Server.JOIN_GAME) {
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+        if (event.getPacket() instanceof JoinGamePacket joinGame) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
 
-            WrapperPlayServerJoinGame joinGame = new WrapperPlayServerJoinGame(event);
-            player.gamemode = joinGame.getGameMode();
-            player.entityID = joinGame.getEntityId();
-            player.dimensionType = joinGame.getDimensionType();
+            DimensionType dimensionType = MinecraftServer.getDimensionTypeRegistry().get(joinGame.dimensionType());
 
-            if (PacketEvents.getAPI().getServerManager().getVersion().isOlderThan(ServerVersion.V_1_17)) return;
-            player.compensatedWorld.setDimension(joinGame.getDimensionType(), event.getUser());
+            player.gamemode = joinGame.gameMode();
+            player.entityID = joinGame.entityId();
+            player.dimensionType = dimensionType;
+
+            player.compensatedWorld.setDimension(dimensionType, event.getPlayer());
         }
 
-        if (event.getPacketType() == PacketType.Play.Server.RESPAWN) {
-            WrapperPlayServerRespawn respawn = new WrapperPlayServerRespawn(event);
-
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+        if (event.getPacket() instanceof RespawnPacket respawn) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
 
+            // todo minestom here
             List<Runnable> tasks = event.getTasksAfterSend();
             tasks.add(player::sendTransaction);
 
@@ -171,11 +170,12 @@ public class PacketPlayerRespawn extends PacketListenerAbstract {
                     player.compensatedWorld.chunks.clear();
                     player.compensatedWorld.isRaining = false;
                 }
-                player.dimensionType = respawn.getDimensionType();
+                DimensionType dimensionType = MinecraftServer.getDimensionTypeRegistry().get(respawn.dimensionType());
+                player.dimensionType = dimensionType;
 
                 player.compensatedEntities.serverPlayerVehicle = null; // All entities get removed on respawn
                 player.compensatedEntities.playerEntity = new PacketEntitySelf(player, player.compensatedEntities.playerEntity);
-                player.compensatedEntities.selfTrackedEntity = new TrackerData(0, 0, 0, 0, 0, EntityTypes.PLAYER, player.lastTransactionSent.get());
+                player.compensatedEntities.selfTrackedEntity = new TrackerData(0, 0, 0, 0, 0, EntityType.PLAYER, player.lastTransactionSent.get());
 
                 if (player.getClientVersion().isOlderThan(ClientVersion.V_1_14)) { // 1.14+ players send a packet for this, listen for it instead
                     player.isSprinting = false;
@@ -185,11 +185,9 @@ public class PacketPlayerRespawn extends PacketListenerAbstract {
                     player.compensatedEntities.hasSprintingAttributeEnabled = false;
                 }
                 player.pose = Pose.STANDING;
-                player.clientVelocity = new Vector();
-                player.gamemode = respawn.getGameMode();
-                if (PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_17)) {
-                    player.compensatedWorld.setDimension(respawn.getDimensionType(), event.getUser());
-                }
+                player.clientVelocity = new MutableVector();
+                player.gamemode = respawn.gameMode();
+                player.compensatedWorld.setDimension(dimensionType, event.getPlayer());
 
                 if (player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_16) && !this.hasFlag(respawn, KEEP_ATTRIBUTES)) {
                     // Reset attributes if not kept
@@ -200,9 +198,8 @@ public class PacketPlayerRespawn extends PacketListenerAbstract {
         }
     }
 
-    private boolean isWorldChange(GrimPlayer player, WrapperPlayServerRespawn respawn) {
-        ClientVersion version = PacketEvents.getAPI().getServerManager().getVersion().toClientVersion();
-        return respawn.getDimensionType().getId(version) != player.dimensionType.getId(version)
-                || !Objects.equals(respawn.getDimensionType().getName(), player.dimensionType.getName());
+    private boolean isWorldChange(GrimPlayer player, RespawnPacket respawn) {
+        DimensionType dimensionType = MinecraftServer.getDimensionTypeRegistry().get(respawn.dimensionType());
+        return dimensionType.natural() != player.dimensionType.natural();
     }
 }

@@ -1,34 +1,39 @@
 package ac.grim.grimac.events.packets;
 
 import ac.grim.grimac.GrimAPI;
-import ac.grim.grimac.checks.impl.movement.NoSlowC;
-import ac.grim.grimac.checks.impl.movement.NoSlowD;
-import ac.grim.grimac.checks.impl.movement.NoSlowE;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketListenerAbstract;
-import com.github.retrooper.packetevents.event.PacketListenerPriority;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.item.ItemStack;
-import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientEntityAction;
+import ac.grim.grimac.utils.ClientVersion;
+import ac.grim.grimac.utils.inventory.ModifiableItemStack;
+import ac.grim.grimac.utils.minestom.EventPriority;
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.event.Event;
+import net.minestom.server.event.EventNode;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.item.Material;
+import net.minestom.server.network.packet.client.play.ClientEntityActionPacket;
 
-public class PacketEntityAction extends PacketListenerAbstract {
+public class PacketEntityAction {
 
-    public PacketEntityAction() {
-        super(PacketListenerPriority.LOW);
+//    public PacketEntityAction() {
+//        super(PacketListenerPriority.LOW);
+//    }
+
+    public PacketEntityAction(EventNode<Event> globalNode) {
+        EventNode<Event> node = EventNode.all("packet-entity-action");
+        node.setPriority(EventPriority.LOW.ordinal());
+
+        node.addListener(PlayerPacketEvent.class, this::onPacketReceive);
+
+        globalNode.addChild(node);
     }
 
-    @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
-        if (event.getPacketType() == PacketType.Play.Client.ENTITY_ACTION) {
-            WrapperPlayClientEntityAction action = new WrapperPlayClientEntityAction(event);
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+    public void onPacketReceive(PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientEntityActionPacket action) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
 
             if (player == null) return;
 
-            switch (action.getAction()) {
+            switch (action.action()) {
                 case START_SPRINTING:
                     player.isSprinting = true;
                     break;
@@ -41,7 +46,7 @@ public class PacketEntityAction extends PacketListenerAbstract {
                 case STOP_SNEAKING:
                     player.isSneaking = false;
                     break;
-                case START_FLYING_WITH_ELYTRA:
+                case START_FLYING_ELYTRA:
                     if (player.onGround || player.lastOnGround) {
                         player.getSetbackTeleportUtil().executeForceResync();
 
@@ -56,11 +61,11 @@ public class PacketEntityAction extends PacketListenerAbstract {
                     }
                     // Starting fall flying is server sided on 1.14 and below
                     if (player.getClientVersion().isOlderThan(ClientVersion.V_1_15)) return;
-                    ItemStack chestPlate = player.getInventory().getChestplate();
+                    ModifiableItemStack chestPlate = player.getInventory().getChestplate();
 
                     // This shouldn't be needed with latency compensated inventories
                     // TODO: Remove this?
-                    if (chestPlate != null && chestPlate.getType() == ItemTypes.ELYTRA
+                    if (chestPlate != null && chestPlate.getType() == Material.ELYTRA
                             && chestPlate.getDamageValue() < chestPlate.getMaxDamage()) {
                         player.isGliding = true;
                         player.pointThreeEstimator.updatePlayerGliding();
@@ -75,11 +80,11 @@ public class PacketEntityAction extends PacketListenerAbstract {
                         player.onPacketCancel();
                     }
                     break;
-                case START_JUMPING_WITH_HORSE:
-                    if (action.getJumpBoost() >= 90) {
+                case START_JUMP_HORSE:
+                    if (action.horseJumpBoost() >= 90) {
                         player.vehicleData.nextHorseJump = 1;
                     } else {
-                        player.vehicleData.nextHorseJump = 0.4F + 0.4F * action.getJumpBoost() / 90.0F;
+                        player.vehicleData.nextHorseJump = 0.4F + 0.4F * action.horseJumpBoost() / 90.0F;
                     }
                     break;
             }

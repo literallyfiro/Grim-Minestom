@@ -1,10 +1,9 @@
 package ac.grim.grimac.utils.data;
 
-import com.github.retrooper.packetevents.util.Vector3d;
-import com.github.retrooper.packetevents.util.Vector3i;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import net.minestom.server.coordinate.Point;
 
 import java.util.List;
 
@@ -12,8 +11,8 @@ import java.util.List;
 @Getter
 @Setter
 public class BlockPrediction {
-    List<Vector3i> forBlockUpdate;
-    Vector3i blockPosition;
+    List<Point> forBlockUpdate;
+    Point blockPosition;
     int originalBlockId;
-    Vector3d playerPosition;
+    Point playerPosition;
 }

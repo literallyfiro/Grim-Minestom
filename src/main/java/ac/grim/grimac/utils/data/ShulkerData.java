@@ -2,7 +2,7 @@ package ac.grim.grimac.utils.data;
 
 import ac.grim.grimac.utils.collisions.datatypes.SimpleCollisionBox;
 import ac.grim.grimac.utils.data.packetentity.PacketEntity;
-import com.github.retrooper.packetevents.util.Vector3i;
+import net.minestom.server.coordinate.Point;
 
 import java.util.Objects;
 
@@ -12,12 +12,12 @@ public class ShulkerData {
 
     // Keep track of one of these two things, so we can remove this later
     public PacketEntity entity = null;
-    public Vector3i blockPos = null;
+    public Point blockPos = null;
 
     // Calculate if the player has no-push, and when to end the possibility of applying piston
     private int ticksOfOpeningClosing = 0;
 
-    public ShulkerData(Vector3i position, int lastTransactionSent, boolean isClosing) {
+    public ShulkerData(Point position, int lastTransactionSent, boolean isClosing) {
         this.lastTransactionSent = lastTransactionSent;
         this.isClosing = isClosing;
         this.blockPos = position;

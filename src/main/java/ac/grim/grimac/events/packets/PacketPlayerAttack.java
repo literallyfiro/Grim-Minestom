@@ -3,61 +3,69 @@ package ac.grim.grimac.events.packets;
 import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.checks.impl.badpackets.BadPacketsW;
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
+import ac.grim.grimac.utils.EnchantmentUtils;
+import ac.grim.grimac.utils.WrapperPlayClientPlayerFlying;
 import ac.grim.grimac.utils.data.packetentity.PacketEntity;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.event.PacketListenerAbstract;
-import com.github.retrooper.packetevents.event.PacketListenerPriority;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
-import com.github.retrooper.packetevents.protocol.item.ItemStack;
-import com.github.retrooper.packetevents.protocol.item.enchantment.type.EnchantmentTypes;
-import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
+import ac.grim.grimac.utils.inventory.ModifiableItemStack;
+import ac.grim.grimac.utils.minestom.EventPriority;
+import ac.grim.grimac.utils.minestom.ItemTags;
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.entity.EntityType;
+import net.minestom.server.event.Event;
+import net.minestom.server.event.EventNode;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.item.enchant.Enchantment;
+import net.minestom.server.network.packet.client.play.ClientInteractEntityPacket;
 
 import static ac.grim.grimac.utils.inventory.Inventory.HOTBAR_OFFSET;
 
-public class PacketPlayerAttack extends PacketListenerAbstract {
+public class PacketPlayerAttack {
 
-    public PacketPlayerAttack() {
-        super(PacketListenerPriority.LOW);
+//    public PacketPlayerAttack() {
+//        super(PacketListenerPriority.LOW);
+//    }
+
+    public PacketPlayerAttack(EventNode<Event> globalNode) {
+        EventNode<Event> node = EventNode.all("packet-player-attack");
+        node.setPriority(EventPriority.LOW.ordinal());
+
+        node.addListener(PlayerPacketEvent.class, this::onPacketReceive);
+
+        globalNode.addChild(node);
     }
 
-    @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
-        if (event.getPacketType() == PacketType.Play.Client.INTERACT_ENTITY) {
-            WrapperPlayClientInteractEntity interact = new WrapperPlayClientInteractEntity(event);
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+    public void onPacketReceive(PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientInteractEntityPacket interact) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
 
             if (player == null) return;
 
             // The entity does not exist
-            if (!player.compensatedEntities.entityMap.containsKey(interact.getEntityId()) && !player.compensatedEntities.serverPositionsMap.containsKey(interact.getEntityId())) {
-                if (player.checkManager.getPacketCheck(BadPacketsW.class).flagAndAlert("entityId=" + interact.getEntityId()) && player.checkManager.getPacketCheck(BadPacketsW.class).shouldModifyPackets()) {
+            if (!player.compensatedEntities.entityMap.containsKey(interact.targetId()) && !player.compensatedEntities.serverPositionsMap.containsKey(interact.targetId())) {
+                if (player.checkManager.getPacketCheck(BadPacketsW.class).flagAndAlert("entityId=" + interact.targetId()) && player.checkManager.getPacketCheck(BadPacketsW.class).shouldModifyPackets()) {
                     event.setCancelled(true);
                     player.onPacketCancel();
                 }
                 return;
             }
 
-            if (interact.getAction() == WrapperPlayClientInteractEntity.InteractAction.ATTACK) {
-                ItemStack heldItem = player.getInventory().getHeldItem();
-                PacketEntity entity = player.compensatedEntities.getEntity(interact.getEntityId());
+            if (interact.type() instanceof ClientInteractEntityPacket.Attack) {
+                ModifiableItemStack heldItem = player.getInventory().getHeldItem();
+                PacketEntity entity = player.compensatedEntities.getEntity(interact.targetId());
 
                 // You don't get a release use item with block hitting with a sword?
                 if (player.getClientVersion().isOlderThan(ClientVersion.V_1_9) && player.packetStateData.isSlowedByUsingItem()) {
-                    ItemStack item = player.getInventory().inventory.getPlayerInventoryItem(player.packetStateData.getSlowedByUsingItemSlot() + HOTBAR_OFFSET);
-                    if (item.getType().hasAttribute(ItemTypes.ItemAttribute.SWORD)) {
+                    ModifiableItemStack item = player.getInventory().inventory.getPlayerInventoryItem(player.packetStateData.getSlowedByUsingItemSlot() + HOTBAR_OFFSET);
+                    if (ItemTags.SWORDS.contains(item.getType())) {
                         player.packetStateData.setSlowedByUsingItem(false);
                     }
                 }
 
-                if (entity != null && (!(entity.isLivingEntity()) || entity.getType() == EntityTypes.PLAYER)) {
-                    boolean hasKnockbackSword = heldItem != null && heldItem.getEnchantmentLevel(EnchantmentTypes.KNOCKBACK, PacketEvents.getAPI().getServerManager().getVersion().toClientVersion()) > 0;
+                if (entity != null && (!(entity.isLivingEntity()) || entity.getType() == EntityType.PLAYER)) {
+                    boolean hasKnockbackSword = heldItem != null && EnchantmentUtils.getEnchantmentLevel(heldItem.getItemStack(), Enchantment.KNOCKBACK) > 0;
                     boolean isLegacyPlayer = player.getClientVersion().isOlderThanOrEquals(ClientVersion.V_1_8);
-                    boolean hasNegativeKB = heldItem != null && heldItem.getEnchantmentLevel(EnchantmentTypes.KNOCKBACK, PacketEvents.getAPI().getServerManager().getVersion().toClientVersion()) < 0;
+                    boolean hasNegativeKB = heldItem != null && EnchantmentUtils.getEnchantmentLevel(heldItem.getItemStack(), Enchantment.KNOCKBACK) < 0;
 
                     // 1.8 players who are packet sprinting WILL get slowed
                     // 1.9+ players who are packet sprinting might not, based on attack cooldown
@@ -79,8 +87,8 @@ public class PacketPlayerAttack extends PacketListenerAbstract {
             }
         }
 
-        if (WrapperPlayClientPlayerFlying.isFlying(event.getPacketType())) {
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+        if (WrapperPlayClientPlayerFlying.isFlying(event.getPacket())) {
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
 
             player.minPlayerAttackSlow = 0;

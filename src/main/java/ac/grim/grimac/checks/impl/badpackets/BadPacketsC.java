@@ -4,9 +4,8 @@ import ac.grim.grimac.checks.Check;
 import ac.grim.grimac.checks.CheckData;
 import ac.grim.grimac.checks.type.PacketCheck;
 import ac.grim.grimac.player.GrimPlayer;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.play.ClientInteractEntityPacket;
 
 @CheckData(name = "BadPacketsC")
 public class BadPacketsC extends Check implements PacketCheck {
@@ -15,9 +14,9 @@ public class BadPacketsC extends Check implements PacketCheck {
     }
 
     @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
-        if (event.getPacketType() == PacketType.Play.Client.INTERACT_ENTITY) {
-            if (new WrapperPlayClientInteractEntity(event).getEntityId() == player.entityID) {
+    public void onPacketReceive(PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientInteractEntityPacket packet) {
+            if (packet.targetId() == player.entityID) {
                 // Instant ban
                 if (flagAndAlert() && shouldModifyPackets()) {
                     event.setCancelled(true);

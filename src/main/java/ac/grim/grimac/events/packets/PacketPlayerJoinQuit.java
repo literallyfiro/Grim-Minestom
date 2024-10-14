@@ -1,39 +1,50 @@
 package ac.grim.grimac.events.packets;
 
 import ac.grim.grimac.GrimAPI;
-import ac.grim.grimac.utils.anticheat.LogUtil;
-import com.github.retrooper.packetevents.event.*;
-import com.github.retrooper.packetevents.netty.channel.ChannelHelper;
-import com.github.retrooper.packetevents.protocol.ConnectionState;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
+import ac.grim.grimac.utils.minestom.EventPriority;
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.entity.Player;
+import net.minestom.server.event.Event;
+import net.minestom.server.event.EventNode;
+import net.minestom.server.event.player.AsyncPlayerConfigurationEvent;
+import net.minestom.server.event.player.AsyncPlayerPreLoginEvent;
+import net.minestom.server.event.player.PlayerDisconnectEvent;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.event.player.PlayerPacketOutEvent;
+import net.minestom.server.network.packet.server.login.LoginSuccessPacket;
 
-public class PacketPlayerJoinQuit extends PacketListenerAbstract {
+public class PacketPlayerJoinQuit {
 
-    @Override
-    public void onPacketSend(PacketSendEvent event) {
-        if (event.getPacketType() == PacketType.Login.Server.LOGIN_SUCCESS) {
+    public PacketPlayerJoinQuit(EventNode<Event> globalNode) {
+        EventNode<Event> node = EventNode.all("packet-player-join-quit");
+        node.setPriority(EventPriority.NORMAL.ordinal());
+
+        globalNode.addListener(PlayerPacketOutEvent.class, this::onPacketSend);
+        globalNode.addListener(AsyncPlayerPreLoginEvent.class, this::onUserConnect);
+        globalNode.addListener(AsyncPlayerConfigurationEvent.class, this::onUserLogin);
+        globalNode.addListener(PlayerDisconnectEvent.class, this::onUserDisconnect);
+
+        globalNode.addChild(node);
+    }
+
+    public void onPacketSend(PlayerPacketOutEvent event) {
+        if (event.getPacket() instanceof LoginSuccessPacket) {
             // Do this after send to avoid sending packets before the PLAY state
-            event.getTasksAfterSend().add(() -> GrimAPI.INSTANCE.getPlayerDataManager().addUser(event.getUser()));
+            event.getTasksAfterSend().add(() -> GrimAPI.INSTANCE.getPlayerDataManager().addUser(event.getPlayer()));
         }
     }
 
-    @Override
-    public void onUserConnect(UserConnectEvent event) {
+    public void onUserConnect(AsyncPlayerPreLoginEvent event) {
+        // todo minestom this
         // Player connected too soon, perhaps late bind is off
         // Don't kick everyone on reload
-        if (event.getUser().getConnectionState() == ConnectionState.PLAY && !GrimAPI.INSTANCE.getPlayerDataManager().exemptUsers.contains(event.getUser())) {
-            event.setCancelled(true);
-        }
+//        if (event.getPlayer().getPlayerConnection().getConnectionState() == ConnectionState.PLAY && !GrimAPI.INSTANCE.getPlayerDataManager().exemptUsers.contains(event.getPlayer())) {
+//            event.setCancelled(true);
+//        }
     }
 
-    @Override
-    public void onUserLogin(UserLoginEvent event) {
-        Player player = (Player) event.getPlayer();
-        if (GrimAPI.INSTANCE.getConfigManager().getConfig().getBooleanElse("debug-pipeline-on-join", false)) {
-            LogUtil.info("Pipeline: " + ChannelHelper.pipelineHandlerNamesAsString(event.getUser().getChannel()));
-        }
+    public void onUserLogin(AsyncPlayerConfigurationEvent event) {
+        Player player = event.getPlayer();
         if (player.hasPermission("grim.alerts") && player.hasPermission("grim.alerts.enable-on-join")) {
             GrimAPI.INSTANCE.getAlertManager().toggleAlerts(player);
         }
@@ -42,16 +53,11 @@ public class PacketPlayerJoinQuit extends PacketListenerAbstract {
         }
     }
 
-    @Override
-    public void onUserDisconnect(UserDisconnectEvent event) {
-        GrimAPI.INSTANCE.getPlayerDataManager().remove(event.getUser());
-        GrimAPI.INSTANCE.getPlayerDataManager().exemptUsers.remove(event.getUser());
-        //Check if calling async is safe
-        if (event.getUser().getProfile().getUUID() == null) return; // folia doesn't like null getPlayer()
-        Player player = Bukkit.getPlayer(event.getUser().getProfile().getUUID());
-        if (player != null) {
-            GrimAPI.INSTANCE.getAlertManager().handlePlayerQuit(player);
-            GrimAPI.INSTANCE.getSpectateManager().onQuit(player);
-        }
+    public void onUserDisconnect(PlayerDisconnectEvent event) {
+        GrimAPI.INSTANCE.getPlayerDataManager().remove(event.getPlayer());
+        GrimAPI.INSTANCE.getPlayerDataManager().exemptUsers.remove(event.getPlayer());
+
+        GrimAPI.INSTANCE.getAlertManager().handlePlayerQuit(event.getPlayer());
+        GrimAPI.INSTANCE.getSpectateManager().onQuit(event.getPlayer());
     }
 }

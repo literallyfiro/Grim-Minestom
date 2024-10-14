@@ -2,13 +2,18 @@ package ac.grim.grimac;
 
 import ac.grim.grimac.manager.*;
 import ac.grim.grimac.manager.config.BaseConfigManager;
+import ac.grim.grimac.manager.config.ConfigManagerFileImpl;
 import ac.grim.grimac.utils.anticheat.PlayerDataManager;
 import lombok.Getter;
-import org.bukkit.plugin.java.JavaPlugin;
+
+import java.io.File;
+import java.util.concurrent.ExecutorService;
 
 @Getter
 public enum GrimAPI {
     INSTANCE;
+
+    public static final ExecutorService EXECUTOR_SERVICE = java.util.concurrent.Executors.newSingleThreadExecutor();
 
     private final BaseConfigManager configManager = new BaseConfigManager();
     private final AlertManagerImpl alertManager = new AlertManagerImpl();
@@ -18,21 +23,21 @@ public enum GrimAPI {
     private final TickManager tickManager = new TickManager();
     private final GrimExternalAPI externalAPI = new GrimExternalAPI(this);
     private InitManager initManager;
-    private JavaPlugin plugin;
 
-    public void load(final JavaPlugin plugin) {
-        this.plugin = plugin;
+    private File dataFolder;
+
+    public void load(File dataFolder) {
+        this.dataFolder = dataFolder;
+
         initManager = new InitManager();
         initManager.load();
     }
 
-    public void start(final JavaPlugin plugin) {
-        this.plugin = plugin;
+    public void start() {
         initManager.start();
     }
 
-    public void stop(final JavaPlugin plugin) {
-        this.plugin = plugin;
+    public void stop() {
         initManager.stop();
     }
 }

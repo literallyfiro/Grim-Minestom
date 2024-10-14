@@ -2,36 +2,36 @@ package ac.grim.grimac.events.packets;
 
 import ac.grim.grimac.GrimAPI;
 import ac.grim.grimac.player.GrimPlayer;
+import ac.grim.grimac.utils.ClientVersion;
 import ac.grim.grimac.utils.collisions.datatypes.SimpleCollisionBox;
 import ac.grim.grimac.utils.data.packetentity.PacketEntity;
 import ac.grim.grimac.utils.data.packetentity.PacketEntityHorse;
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.event.PacketListenerAbstract;
-import com.github.retrooper.packetevents.event.PacketListenerPriority;
-import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.manager.server.ServerVersion;
-import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientSteerVehicle;
+import ac.grim.grimac.utils.minestom.EventPriority;
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.event.Event;
+import net.minestom.server.event.EventNode;
+import net.minestom.server.event.player.PlayerPacketEvent;
+import net.minestom.server.network.packet.client.play.ClientSteerVehiclePacket;
 
-public class PacketPlayerSteer extends PacketListenerAbstract {
+public class PacketPlayerSteer {
 
-    public PacketPlayerSteer() {
-        super(PacketListenerPriority.LOW);
+    public PacketPlayerSteer(EventNode<Event> globalNode) {
+        EventNode<Event> node = EventNode.all("packet-player-steer");
+        node.setPriority(EventPriority.LOW.ordinal());
+
+        node.addListener(PlayerPacketEvent.class, this::onPacketReceive);
+
+        globalNode.addChild(node);
     }
 
-    @Override
-    public void onPacketReceive(PacketReceiveEvent event) {
+    public void onPacketReceive(PlayerPacketEvent event) {
+        if (event.getPacket() instanceof ClientSteerVehiclePacket steer) {
 
-        if (event.getPacketType() == PacketType.Play.Client.STEER_VEHICLE) {
-            WrapperPlayClientSteerVehicle steer = new WrapperPlayClientSteerVehicle(event);
-
-            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getUser());
+            GrimPlayer player = GrimAPI.INSTANCE.getPlayerDataManager().getPlayer(event.getPlayer());
             if (player == null) return;
 
-            float forwards = steer.getForward();
-            float sideways = steer.getSideways();
+            float forwards = steer.forward();
+            float sideways = steer.sideways();
 
             player.vehicleData.nextVehicleForward = forwards;
             player.vehicleData.nextVehicleHorizontal = sideways;
@@ -46,9 +46,9 @@ public class PacketPlayerSteer extends PacketListenerAbstract {
                 // If the player is the first passenger, disregard this attempt to have the server control the entity
                 if ((riding.isBoat() || riding instanceof PacketEntityHorse) && riding.passengers.get(0) == player.compensatedEntities.getSelf() &&
                         // Although if the player has server controlled entities
-                        player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_9) &&
+                        player.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_9)
                         // or the server controls the entities, then this is vanilla logic so allow it
-                        PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_9)) {
+                    ) {
                     return;
                 }
 
