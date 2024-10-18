@@ -31,9 +31,6 @@ public class MovementTicker {
     public static void handleEntityCollisions(GrimPlayer player) {
         // 1.7 and 1.8 do not have player collision
         if (player.getClientVersion().isOlderThan(ClientVersion.V_1_9)) return;
-                // Check that ViaVersion disables all collisions on a 1.8 server for 1.9+ clients
-//                || (PacketEvents.getAPI().getServerManager().getVersion().isOlderThan(ServerVersion.V_1_9)
-//                    && (!ViaVersionUtil.isAvailable() || Via.getConfig().isPreventCollision()))) return;
 
         int possibleCollidingEntities = 0;
 

@@ -26,10 +26,8 @@ public class PacketChangeGameState extends Check implements PacketCheck {
 
                     // Some plugins send invalid values such as -1, this is what the client does
                     if (gamemode < 0 || gamemode >= GameMode.values().length) {
-                        System.out.println("Gamemode1: " + gamemode);
                         player.gamemode = GameMode.SURVIVAL;
                     } else {
-                        System.out.println("Gamemode: " + gamemode);
                         player.gamemode = GameMode.values()[gamemode];
                     }
 

@@ -59,8 +59,7 @@ public class CompensatedChunk {
     }
 
     public void set(int x, int y, int z, int state) {
-        this.chunkData.set(x, y, z, state);
-        int curr = this.chunkData.get(x, y, z);
+        int curr = this.chunkData.set(x, y, z, state);
         if (state != AIR && curr == AIR) {
             this.blockCount++;
         } else if (state == AIR && curr != AIR) {

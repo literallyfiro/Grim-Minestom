@@ -13,8 +13,6 @@ public class PlayerDataManager {
     public final Collection<Player> exemptUsers = Collections.synchronizedCollection(new HashSet<>());
 
     public GrimPlayer getPlayer(final Player player) {
-        if (MultiLibUtil.isExternalPlayer(player)) return null;
-
         // Is it safe to interact with this, or is this internal PacketEvents code?
         return playerDataMap.get(player);
     }

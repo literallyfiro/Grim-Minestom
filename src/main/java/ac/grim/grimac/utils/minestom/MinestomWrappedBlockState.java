@@ -4,7 +4,6 @@ import lombok.Getter;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.instance.block.BlockFace;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import ac.grim.grimac.utils.minestom.enums.*;
 
 import java.util.HashMap;
@@ -15,16 +14,12 @@ import java.util.Map;
 public class MinestomWrappedBlockState implements Cloneable {
 
     private Block block;
-    private int globalID;
+    private final int globalID;
     private Map<StateValue, Object> data = new HashMap<>(0);
 
     public static final MinestomWrappedBlockState AIR = new MinestomWrappedBlockState(Block.AIR);
 
-    public MinestomWrappedBlockState(@Nullable Block block) {
-        if (block == null) {
-            System.out.println("block is null");
-            return;
-        }
+    public MinestomWrappedBlockState(@NotNull Block block) {
         this.block = block;
         this.globalID = block.id();
 
@@ -97,10 +92,12 @@ public class MinestomWrappedBlockState implements Cloneable {
     @NotNull
     public static MinestomWrappedBlockState getByGlobalId(int globalid, boolean clone) {
         if (globalid == 0) return AIR; // Hardcode for performance
-        MinestomWrappedBlockState state = new MinestomWrappedBlockState(Block.fromStateId(globalid));
-        if (state.getType() == null) {
-            state = AIR;
+        Block block = Block.fromBlockId(globalid);
+        if (block == null) {
+            System.out.println("Unknown block id: " + globalid);
+            return AIR;
         }
+        MinestomWrappedBlockState state = new MinestomWrappedBlockState(block);
         return clone ? state.clone() : state;
     }
 
@@ -119,7 +116,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setAge(int age) {
         data.put(StateValue.AGE, age);
-        block.properties().put(StateValue.AGE.getName(), String.valueOf(age));
+        block = block.withProperty(StateValue.AGE.getName(), String.valueOf(age));
     }
 
     public boolean isAttached() {
@@ -128,7 +125,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setAttached(boolean attached) {
         data.put(StateValue.ATTACHED, attached);
-        block.properties().put(StateValue.ATTACHED.getName(), String.valueOf(attached));
+        block = block.withProperty(StateValue.ATTACHED.getName(), String.valueOf(attached));
     }
 
     public Attachment getAttachment() {
@@ -137,7 +134,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setAttachment(Attachment attachment) {
         data.put(StateValue.ATTACHMENT, attachment);
-        block.properties().put(StateValue.ATTACHMENT.getName(), attachment.name());
+        block = block.withProperty(StateValue.ATTACHMENT.getName(), attachment.name().toLowerCase());
     }
 
     public Axis getAxis() {
@@ -146,7 +143,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setAxis(Axis axis) {
         data.put(StateValue.AXIS, axis);
-        block.properties().put(StateValue.AXIS.getName(), axis.name());
+        block = block.withProperty(StateValue.AXIS.getName(), axis.name().toLowerCase());
     }
 
     public boolean isBerries() {
@@ -155,7 +152,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setBerries(boolean berries) {
         data.put(StateValue.BERRIES, berries);
-        block.properties().put(StateValue.BERRIES.getName(), String.valueOf(berries));
+        block = block.withProperty(StateValue.BERRIES.getName(), String.valueOf(berries));
     }
 
     public int getBites() {
@@ -164,7 +161,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setBites(int bites) {
         data.put(StateValue.BITES, bites);
-        block.properties().put(StateValue.BITES.getName(), String.valueOf(bites));
+        block = block.withProperty(StateValue.BITES.getName(), String.valueOf(bites));
     }
 
     public boolean isBottom() {
@@ -173,7 +170,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setBottom(boolean bottom) {
         data.put(StateValue.BOTTOM, bottom);
-        block.properties().put(StateValue.BOTTOM.getName(), String.valueOf(bottom));
+        block = block.withProperty(StateValue.BOTTOM.getName(), String.valueOf(bottom));
     }
 
     public int getCandles() {
@@ -182,7 +179,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setCandles(int candles) {
         data.put(StateValue.CANDLES, candles);
-        block.properties().put(StateValue.CANDLES.getName(), String.valueOf(candles));
+        block = block.withProperty(StateValue.CANDLES.getName(), String.valueOf(candles));
     }
 
     public int getCharges() {
@@ -211,7 +208,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setDown(boolean down) {
         data.put(StateValue.DOWN, down);
-        block.properties().put(StateValue.DOWN.getName(), String.valueOf(down));
+        block = block.withProperty(StateValue.DOWN.getName(), String.valueOf(down));
     }
 
     public boolean isDrag() {
@@ -244,7 +241,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setFace(Face face) {
         data.put(StateValue.FACE, face);
-        block.properties().put(StateValue.FACE.getName(), face.name());
+        block = block.withProperty(StateValue.FACE.getName(), face.name().toLowerCase());
     }
 
     public BlockFace getFacing() {
@@ -253,7 +250,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setFacing(BlockFace facing) {
         data.put(StateValue.FACING, facing);
-        block.properties().put(StateValue.FACING.getName(), facing.name());
+        block = block.withProperty(StateValue.FACING.getName(), facing.name().toLowerCase());
     }
 
     public int getFlowerAmount() {
@@ -265,9 +262,8 @@ public class MinestomWrappedBlockState implements Cloneable {
     }
 
     public void setHalf(Half half) {
-
         data.put(StateValue.HALF, half);
-
+        block = block.withProperty(StateValue.HALF.getName(), half.name().toLowerCase());
     }
 
     public boolean isHanging() {
@@ -276,7 +272,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setHanging(boolean hanging) {
         data.put(StateValue.HANGING, hanging);
-        block.properties().put(StateValue.HANGING.getName(), String.valueOf(hanging));
+        block = block.withProperty(StateValue.HANGING.getName(), String.valueOf(hanging));
     }
 
     public boolean isHasBook() {
@@ -285,7 +281,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setHasBook(boolean hasBook) {
         data.put(StateValue.HAS_BOOK, hasBook);
-        block.properties().put(StateValue.HAS_BOOK.getName(), String.valueOf(hasBook));
+        block = block.withProperty(StateValue.HAS_BOOK.getName(), String.valueOf(hasBook));
     }
 
     public boolean isHasBottle0() {
@@ -314,7 +310,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setHinge(Hinge hinge) {
         data.put(StateValue.HINGE, hinge);
-        block.properties().put(StateValue.HINGE.getName(), hinge.name());
+        block = block.withProperty(StateValue.HINGE.getName(), hinge.name().toLowerCase());
     }
 
     public int getHoneyLevel() {
@@ -339,7 +335,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setLayers(int layers) {
         data.put(StateValue.LAYERS, layers);
-        block.properties().put(StateValue.LAYERS.getName(), String.valueOf(layers));
+        block = block.withProperty(StateValue.LAYERS.getName(), String.valueOf(layers));
     }
 
     public Leaves getLeaves() {
@@ -348,7 +344,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setLeaves(Leaves leaves) {
         data.put(StateValue.LEAVES, leaves);
-        block.properties().put(StateValue.LEAVES.getName(), leaves.name());
+        block = block.withProperty(StateValue.LEAVES.getName(), leaves.name().toLowerCase());
     }
 
     public int getLevel() {
@@ -357,7 +353,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setLevel(int level) {
         data.put(StateValue.LEVEL, level);
-        block.properties().put(StateValue.LEVEL.getName(), String.valueOf(level));
+        block = block.withProperty(StateValue.LEVEL.getName(), String.valueOf(level));
     }
 
     public boolean isLit() {
@@ -366,7 +362,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setLit(boolean lit) {
         data.put(StateValue.LIT, lit);
-        block.properties().put(StateValue.LIT.getName(), String.valueOf(lit));
+        block = block.withProperty(StateValue.LIT.getName(), String.valueOf(lit));
     }
 
     public boolean isLocked() {
@@ -387,7 +383,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setNorth(North north) {
         data.put(StateValue.NORTH, north);
-        block.properties().put(StateValue.NORTH.getName(), north.name());
+        block = block.withProperty(StateValue.NORTH.getName(), north.name().toLowerCase());
     }
 
     public int getNote() {
@@ -412,7 +408,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setOpen(boolean open) {
         data.put(StateValue.OPEN, open);
-        block.properties().put(StateValue.OPEN.getName(), String.valueOf(open));
+        block = block.withProperty(StateValue.OPEN.getName(), String.valueOf(open));
     }
 
     public Orientation getOrientation() {
@@ -433,7 +429,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setPickles(int pickles) {
         data.put(StateValue.PICKLES, pickles);
-        block.properties().put(StateValue.PICKLES.getName(), String.valueOf(pickles));
+        block = block.withProperty(StateValue.PICKLES.getName(), String.valueOf(pickles));
     }
 
     public int getPower() {
@@ -446,7 +442,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setPowered(boolean powered) {
         data.put(StateValue.POWERED, powered);
-        block.properties().put(StateValue.POWERED.getName(), String.valueOf(powered));
+        block = block.withProperty(StateValue.POWERED.getName(), String.valueOf(powered));
     }
 
     public int getRotation() {
@@ -507,7 +503,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setSouth(South south) {
         data.put(StateValue.SOUTH, south);
-        block.properties().put(StateValue.SOUTH.getName(), south.name());
+        block = block.withProperty(StateValue.SOUTH.getName(), south.name().toLowerCase());
     }
 
     public Thickness getThickness() {
@@ -516,7 +512,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setThickness(Thickness thickness) {
         data.put(StateValue.THICKNESS, thickness);
-        block.properties().put(StateValue.THICKNESS.getName(), thickness.name());
+        block = block.withProperty(StateValue.THICKNESS.getName(), thickness.name().toLowerCase());
     }
 
     public Tilt getTilt() {
@@ -533,7 +529,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setTypeData(Type type) {
         data.put(StateValue.TYPE, type);
-        block.properties().put(StateValue.TYPE.getName(), type.name());
+        block = block.withProperty(StateValue.TYPE.getName(), type.name().toLowerCase());
     }
 
     public boolean isUnstable() {
@@ -546,7 +542,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setUp(boolean up) {
         data.put(StateValue.UP, up);
-        block.properties().put(StateValue.UP.getName(), String.valueOf(up));
+        block = block.withProperty(StateValue.UP.getName(), String.valueOf(up));
     }
 
     public VerticalDirection getVerticalDirection() {
@@ -555,7 +551,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setVerticalDirection(VerticalDirection verticalDirection) {
         data.put(StateValue.VERTICAL_DIRECTION, verticalDirection);
-        block.properties().put(StateValue.VERTICAL_DIRECTION.getName(), verticalDirection.name());
+        block = block.withProperty(StateValue.VERTICAL_DIRECTION.getName(), verticalDirection.name().toLowerCase());
     }
 
     public boolean isWaterlogged() {
@@ -564,7 +560,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setWaterlogged(boolean waterlogged) {
         data.put(StateValue.WATERLOGGED, waterlogged);
-        block.properties().put(StateValue.WATERLOGGED.getName(), String.valueOf(waterlogged));
+        block = block.withProperty(StateValue.WATERLOGGED.getName(), String.valueOf(waterlogged));
     }
 
     public East getEast() {
@@ -573,7 +569,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setEast(East east) {
         data.put(StateValue.EAST, east);
-        block.properties().put(StateValue.EAST.getName(), east.name());
+        block = block.withProperty(StateValue.EAST.getName(), east.name().toLowerCase());
     }
 
     public West getWest() {
@@ -582,7 +578,7 @@ public class MinestomWrappedBlockState implements Cloneable {
 
     public void setWest(West west) {
         data.put(StateValue.WEST, west);
-        block.properties().put(StateValue.WEST.getName(), west.name());
+        block = block.withProperty(StateValue.WEST.getName(), west.name().toLowerCase());
     }
 
     public Bloom getBloom() {

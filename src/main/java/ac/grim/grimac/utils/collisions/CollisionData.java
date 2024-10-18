@@ -65,7 +65,7 @@ public enum CollisionData {
             boxes.add(new HexCollisionBox(0.0D, 0.0D, 15.0D, 16.0D, 16.0D, 16.0D));
 
         // This is where fire differs from vine with its hitbox
-        if (block.getBlock() == Block.FIRE.registry().material().block() && boxes.isNull())
+        if (block.getBlock() == Block.FIRE && boxes.isNull())
             return new HexCollisionBox(0.0D, 0.0D, 0.0D, 16.0D, 1.0D, 16.0D);
 
         return boxes;

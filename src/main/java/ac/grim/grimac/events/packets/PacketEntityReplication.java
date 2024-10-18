@@ -42,7 +42,6 @@ import net.minestom.server.potion.Potion;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 public class PacketEntityReplication extends Check implements PacketCheck {
@@ -103,36 +102,11 @@ public class PacketEntityReplication extends Check implements PacketCheck {
         if ((event.getPacket() instanceof PingPacket) && player.packetStateData.lastServerTransWasValid) {
             despawnedEntitiesThisTransaction.clear();
         }
-//        if (event.getPacket() == PacketType.Play.Server.SPAWN_LIVING_ENTITY) {
-//            WrapperPlayServerSpawnLivingEntity packetOutEntity = new WrapperPlayServerSpawnLivingEntity(event);
-//            addEntity(packetOutEntity.getEntityId(), packetOutEntity.getEntityUUID(), packetOutEntity.getEntityType(), packetOutEntity.getPosition(), packetOutEntity.getYaw(), packetOutEntity.getPitch(), packetOutEntity.getEntityMetadata(), 0);
-//        }
         if (event.getPacket() instanceof SpawnEntityPacket packetOutEntity) {
-            // todo minestom
-            Entity entity = new Entity(Objects.requireNonNull(EntityType.fromId(packetOutEntity.type())), packetOutEntity.uuid());
-            addEntity(packetOutEntity.entityId(),
-                    packetOutEntity.uuid(),
-                    entity,
-                    packetOutEntity.position(),
-                    null,
-                    packetOutEntity.data());
+            Entity entity = event.getPlayer().getInstance().getEntityByUuid(packetOutEntity.uuid());
+            addEntity(packetOutEntity.entityId(), packetOutEntity.uuid(), entity, packetOutEntity.position(), null, packetOutEntity.data());
         }
-//        if (event.getPacket() instanceof JoinGamePacket joinGamePacket) {
-//            System.out.println("JoinGamePacket");
-//            System.out.println("Entity ID: " + joinGamePacket.entityId() + " (" + EntityType.fromId(joinGamePacket.entityId()) + ")");
-//            addEntity(joinGamePacket.entityId(),
-//                    joinGamePacket.uuid(),
-//                    EntityType.PLAYER, joinGamePacket.uuid(),
-//                    joinGamePacket.position(),
-//                    null, 0);
-//        }
-//        if (event.getPacket() == PacketType.Play.Server.SPAWN_PLAYER) {
-//            WrapperPlayServerSpawnPlayer packetOutEntity = new WrapperPlayServerSpawnPlayer(event);
-//            addEntity(packetOutEntity.getEntityId(), packetOutEntity.getUUID(), EntityTypes.PLAYER, packetOutEntity.getPosition(), packetOutEntity.getYaw(), packetOutEntity.getPitch(), packetOutEntity.getEntityMetadata(), 0);
-//        }
-
         if (event.getPacket() instanceof EntityPositionPacket move) {
-            System.out.println("EntityPositionPacket");
             handleMoveEntity(event, move.entityId(), move.deltaX(), move.deltaY(), move.deltaZ(), null, null, true, true);
         }
         if (event.getPacket() instanceof EntityPositionAndRotationPacket move) {
@@ -159,7 +133,6 @@ public class PacketEntityReplication extends Check implements PacketCheck {
                 }
             });
         } else if (event.getPacket() instanceof PlayerInfoRemovePacket remove) {
-            System.out.println("PlayerInfoRemovePacket");
             player.latencyUtils.addRealTimeTask(player.lastTransactionSent.get(),
                     () -> remove.uuids().forEach(player.compensatedEntities.profiles::remove));
         }
