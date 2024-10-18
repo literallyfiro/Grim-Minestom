@@ -6,7 +6,6 @@ import ac.grim.grimac.utils.RelativeFlag;
 import ac.grim.grimac.utils.data.Pair;
 import ac.grim.grimac.utils.minestom.EventPriority;
 import ac.grim.grimac.utils.vector.Vector3d;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.event.Event;
 import net.minestom.server.event.EventNode;
@@ -86,7 +85,6 @@ public class PacketServerTeleport {
             final int lastTransactionSent = player.lastTransactionSent.get();
             event.getTasksAfterSend().add(player::sendTransaction);
 
-            // todo minestom
 //            if (teleport.isDismountVehicle()) {
 //                // Remove player from vehicle
 //                event.getTasksAfterSend().add(() -> {

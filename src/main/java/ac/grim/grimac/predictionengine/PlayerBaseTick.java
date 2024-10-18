@@ -20,6 +20,8 @@ import net.minestom.server.instance.block.BlockFace;
 import net.minestom.server.network.packet.server.play.EntityAttributesPacket;
 import net.minestom.server.utils.NamespaceID;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public class PlayerBaseTick {
@@ -160,8 +162,8 @@ public class PlayerBaseTick {
 
         // The client first desync's this attribute
         NamespaceID powderSnow = NamespaceID.from("minecraft:powder_snow");
-        // todo minestom modifiers is a collection
-//        property.get().modifiers().removeIf(modifier -> modifier.id().key().equals(powderSnow));
+        List<AttributeModifier> modifiers = new ArrayList<>(property.get().modifiers());
+        modifiers.removeIf(modifier -> modifier.id().key().equals(powderSnow));
         playerSpeed.recalculate();
 
         // And then re-adds it using purely what the server has sent it

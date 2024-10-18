@@ -26,13 +26,9 @@ public class SpectateManager implements Initable {
     @Override
     public void start() {
         allowedWorlds.clear();
-        // todo  allowedWorlds.addAll(GrimAPI.INSTANCE.getConfigManager().getConfig().getStringListElse("spectators.allowed-worlds", new ArrayList<>()));
-        //        checkWorld = !(allowedWorlds.isEmpty() || new ArrayList<>(allowedWorlds).get(0).isEmpty());
-        //
         List<UUID> worlds = GrimAPI.INSTANCE.getConfigManager().getConfig().get("spectators.allowed-worlds");
         allowedWorlds.addAll(worlds);
-        // todo minestom here
-        checkWorld = !(allowedWorlds.isEmpty()); //|| new ArrayList<>(allowedWorlds).getFirst().toString().isEmpty());
+        checkWorld = !(allowedWorlds.isEmpty()) || new ArrayList<>(allowedWorlds).getFirst().toString().isEmpty();
     }
 
     public boolean isSpectating(UUID uuid) {

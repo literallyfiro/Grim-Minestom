@@ -12,10 +12,13 @@ import java.util.Locale;
 import java.util.Map;
 
 @Getter
-public class MinestomWrappedBlockState {
+public class MinestomWrappedBlockState implements Cloneable {
 
     private Block block;
-    private final Map<StateValue, Object> data = new HashMap<>(0);
+    private int globalID;
+    private Map<StateValue, Object> data = new HashMap<>(0);
+
+    public static final MinestomWrappedBlockState AIR = new MinestomWrappedBlockState(Block.AIR);
 
     public MinestomWrappedBlockState(@Nullable Block block) {
         if (block == null) {
@@ -23,6 +26,7 @@ public class MinestomWrappedBlockState {
             return;
         }
         this.block = block;
+        this.globalID = block.id();
 
         for (Map.Entry<String, String> stringStringEntry : block.properties().entrySet()) {
             final String key = stringStringEntry.getKey();
@@ -39,6 +43,12 @@ public class MinestomWrappedBlockState {
                 e.printStackTrace();
             }
         }
+    }
+
+    public MinestomWrappedBlockState(Block type, Map<StateValue, Object> data, int globalID) {
+        this.globalID = globalID;
+        this.block = type;
+        this.data = data;
     }
 
     @NotNull
@@ -74,8 +84,28 @@ public class MinestomWrappedBlockState {
         return true;
     }
 
+    @NotNull
+    public static MinestomWrappedBlockState getByGlobalId(int globalid) {
+        return getByGlobalId(globalid, true);
+    }
+
+    @Override
+    public MinestomWrappedBlockState clone() {
+        return new MinestomWrappedBlockState(block, data, globalID);
+    }
+
+    @NotNull
+    public static MinestomWrappedBlockState getByGlobalId(int globalid, boolean clone) {
+        if (globalid == 0) return AIR; // Hardcode for performance
+        MinestomWrappedBlockState state = new MinestomWrappedBlockState(Block.fromStateId(globalid));
+        if (state.getType() == null) {
+            state = AIR;
+        }
+        return clone ? state.clone() : state;
+    }
+
     public int getGlobalId() {
-        return block.id();
+        return globalID;
     }
 
     public Block getType() {

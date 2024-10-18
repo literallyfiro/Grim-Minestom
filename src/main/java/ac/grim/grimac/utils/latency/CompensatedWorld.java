@@ -16,6 +16,7 @@ import ac.grim.grimac.utils.minestom.BlockFaceUtils;
 import ac.grim.grimac.utils.minestom.BlockTags;
 import ac.grim.grimac.utils.minestom.MinestomWrappedBlockState;
 import ac.grim.grimac.utils.minestom.StateValue;
+import ac.grim.grimac.utils.minestom.chunk.CompensatedChunk;
 import ac.grim.grimac.utils.nmsutil.Collisions;
 import ac.grim.grimac.utils.nmsutil.GetBoundingBox;
 import ac.grim.grimac.utils.nmsutil.Materials;
@@ -247,25 +248,25 @@ public class CompensatedWorld {
         if (column != null) {
             if (column.getChunks().length <= (offsetY >> 4) || (offsetY >> 4) < 0) return;
 
-            Chunk chunk = column.getChunks()[offsetY >> 4];
+            CompensatedChunk chunk = column.getChunks()[offsetY >> 4];
 
             if (chunk == null) {
-                chunk = instance.getChunkSupplier().createChunk(instance, 0, 0);
+                chunk = new CompensatedChunk();
                 column.getChunks()[offsetY >> 4] = chunk;
 
                 // Sets entire chunk to air
                 // This glitch/feature occurs due to the palette size being 0 when we first create a chunk section
                 // Meaning that all blocks in the chunk will refer to palette #0, which we are setting to air
-                chunk.setBlock(0, 0, 0, Block.AIR);
+                chunk.set(0, 0, 0, 0);
             }
 
             // The method also gets called for the previous state before replacement
-            player.pointThreeEstimator.handleChangeBlock(x, y, z, new MinestomWrappedBlockState(chunk.getBlock(x & 0xF, offsetY & 0xF, z & 0xF)));
+            player.pointThreeEstimator.handleChangeBlock(x, y, z, chunk.get(x & 0xF, offsetY & 0xF, z & 0xF));
 
-            chunk.setBlock(x & 0xF, offsetY & 0xF, z & 0xF, Objects.requireNonNull(Block.fromBlockId(combinedID)));
+            chunk.set(x & 0xF, offsetY & 0xF, z & 0xF, combinedID);
 
             // Handle stupidity such as fluids changing in idle ticks.
-            player.pointThreeEstimator.handleChangeBlock(x, y, z, new MinestomWrappedBlockState(Block.fromBlockId(combinedID)));
+            player.pointThreeEstimator.handleChangeBlock(x, y, z, MinestomWrappedBlockState.getByGlobalId(combinedID));
         }
     }
 
@@ -402,9 +403,9 @@ public class CompensatedWorld {
             y -= minHeight;
             if (column == null || y < 0 || (y >> 4) >= column.getChunks().length) return airData;
 
-            Chunk chunk = column.getChunks()[y >> 4];
+            CompensatedChunk chunk = column.getChunks()[y >> 4];
             if (chunk != null) {
-                return new MinestomWrappedBlockState(chunk.getBlock(x & 0xF, y & 0xF, z & 0xF));
+                return chunk.get(x & 0xF, y & 0xF, z & 0xF);
             }
         } catch (Exception ignored) {
         }

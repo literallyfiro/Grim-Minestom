@@ -8,8 +8,6 @@ import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.network.packet.server.play.MultiBlockChangePacket;
 
-import static ac.grim.grimac.GrimAPI.EXECUTOR_SERVICE;
-
 public class ResyncWorldUtil {
 //    static HashMap<BlockData, Integer> blockDataToId = new HashMap<>();
 
@@ -90,15 +88,12 @@ public class ResyncWorldUtil {
                         }
                     }
 
-
-                    System.out.println("Sending multi block change packet");
-
                     long encodedPos = 0;
                     encodedPos |= (currChunkX & 0x3FFFFFL) << 42;
                     encodedPos |= (currChunkZ & 0x3FFFFFL) << 20;
                     encodedPos |= (currChunkY & 0xFFFFFL);
                     MultiBlockChangePacket packet = new MultiBlockChangePacket(encodedPos, blocks);
-                    EXECUTOR_SERVICE.submit(() -> player.bukkitPlayer.sendPacket(packet));
+                    player.bukkitPlayer.sendPacket(packet);
 //                    ChannelHelper.runInEventLoop(player.user.getChannel(), () -> player.user.sendPacket(packet));
                 }
             }

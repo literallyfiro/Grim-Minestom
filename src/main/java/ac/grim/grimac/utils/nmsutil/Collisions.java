@@ -14,13 +14,13 @@ import ac.grim.grimac.utils.math.GrimMath;
 import ac.grim.grimac.utils.math.VectorUtils;
 import ac.grim.grimac.utils.minestom.BlockTags;
 import ac.grim.grimac.utils.minestom.MinestomWrappedBlockState;
+import ac.grim.grimac.utils.minestom.chunk.CompensatedChunk;
 import ac.grim.grimac.utils.vector.MutableVector;
 import ac.grim.grimac.utils.vector.Vector3d;
 import it.unimi.dsi.fastutil.floats.FloatArraySet;
 import it.unimi.dsi.fastutil.floats.FloatArrays;
 import it.unimi.dsi.fastutil.floats.FloatSet;
 import net.minestom.server.coordinate.Pos;
-import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.potion.PotionEffect;
 
@@ -285,14 +285,14 @@ public class Collisions {
                 Column chunk = player.compensatedWorld.getChunk(currChunkX, currChunkZ);
                 if (chunk == null) continue;
 
-                Chunk[] sections = chunk.getChunks();
+                CompensatedChunk[] sections = chunk.getChunks();
 
                 for (int y = minYIterate; y <= maxYIterate; ++y) {
                     int sectionIndex = (y >> 4) - minSection;
 
-                    Chunk section = sections[sectionIndex];
+                    CompensatedChunk section = sections[sectionIndex];
 
-                    if (section == null || (IS_FOURTEEN && section.getSections().isEmpty())) { // Check for empty on 1.13+ servers
+                    if (section == null || (IS_FOURTEEN && section.isEmpty())) { // Check for empty on 1.13+ servers
                         // empty
                         // skip to next section
                         y = (y & ~(15)) + 15; // increment by 15: iterator loop increments by the extra one
@@ -304,20 +304,19 @@ public class Collisions {
                             int x = currX | chunkXGlobalPos;
                             int z = currZ | chunkZGlobalPos;
 
-                            Block data = section.getBlock(x & 0xF, y & 0xF, z & 0xF);
+                            MinestomWrappedBlockState data = section.get(x & 0xF, y & 0xF, z & 0xF);
 
                             // Works on both legacy and modern!  Faster than checking for material types, most common case
-                            if (data.id() == 0) continue;
+                            if (data.getGlobalId() == 0) continue;
 
                             // Thanks SpottedLeaf for this optimization, I took edgeCount from Tuinity
                             int edgeCount = ((x == minBlockX || x == maxBlockX) ? 1 : 0) +
                                     ((y == minBlockY || y == maxBlockY) ? 1 : 0) +
                                     ((z == minBlockZ || z == maxBlockZ) ? 1 : 0);
 
-                            final MinestomWrappedBlockState type = new MinestomWrappedBlockState(data);
-                            if (edgeCount != 3 && (edgeCount != 1 || Materials.isShapeExceedsCube(type.getType()))
-                                    && (edgeCount != 2 || type.getType() == Block.PISTON_HEAD)) {
-                                final CollisionBox collisionBox = CollisionData.getData(type.getBlock()).getMovementCollisionBox(player, player.getClientVersion(), type, x, y, z);
+                            if (edgeCount != 3 && (edgeCount != 1 || Materials.isShapeExceedsCube(data.getType()))
+                                    && (edgeCount != 2 || data.getType() == Block.PISTON_HEAD)) {
+                                final CollisionBox collisionBox = CollisionData.getData(data.getBlock()).getMovementCollisionBox(player, player.getClientVersion(), data, x, y, z);
                                 // Don't add to a list if we only care if the player intersects with the block
                                 if (!onlyCheckCollide) {
                                     collisionBox.downCast(listOfBlocks);
@@ -675,12 +674,12 @@ public class Collisions {
                 Column chunk = player.compensatedWorld.getChunk(currChunkX, currChunkZ);
 
                 if (chunk == null) continue;
-                Chunk[] sections = chunk.getChunks();
+                CompensatedChunk[] sections = chunk.getChunks();
 
                 for (int y = minYIterate; y <= maxYIterate; ++y) {
-                    Chunk section = sections[(y >> 4) - minSection];
+                    CompensatedChunk section = sections[(y >> 4) - minSection];
 
-                    if (section == null || (IS_FOURTEEN && section.getSections().isEmpty())) { // Check for empty on 1.13+ servers
+                    if (section == null || (IS_FOURTEEN && section.isEmpty())) { // Check for empty on 1.13+ servers
                         // empty
                         // skip to next section
                         y = (y & ~(15)) + 15; // increment by 15: iterator loop increments by the extra one
@@ -692,7 +691,7 @@ public class Collisions {
                             int x = currX | chunkXGlobalPos;
                             int z = currZ | chunkZGlobalPos;
 
-                            MinestomWrappedBlockState data = new MinestomWrappedBlockState(section.getBlock(x & 0xF, y & 0xF, z & 0xF));
+                            MinestomWrappedBlockState data = section.get(x & 0xF, y & 0xF, z & 0xF);
 
                             if (searchingFor.test(new Pair<>(data, new Vector3d(x, y, z)))) return true;
                         }
@@ -739,12 +738,12 @@ public class Collisions {
                 Column chunk = player.compensatedWorld.getChunk(currChunkX, currChunkZ);
 
                 if (chunk == null) continue;
-                Chunk[] sections = chunk.getChunks();
+                CompensatedChunk[] sections = chunk.getChunks();
 
                 for (int y = minYIterate; y <= maxYIterate; ++y) {
-                    Chunk section = sections[(y >> 4) - minSection];
+                    CompensatedChunk section = sections[(y >> 4) - minSection];
 
-                    if (section == null || (IS_FOURTEEN && section.getSections().isEmpty())) { // Check for empty on 1.13+ servers
+                    if (section == null || (IS_FOURTEEN && section.isEmpty())) { // Check for empty on 1.13+ servers
                         // empty
                         // skip to next section
                         y = (y & ~(15)) + 15; // increment by 15: iterator loop increments by the extra one
@@ -756,7 +755,7 @@ public class Collisions {
                             int x = currX | chunkXGlobalPos;
                             int z = currZ | chunkZGlobalPos;
 
-                            MinestomWrappedBlockState data = new MinestomWrappedBlockState(section.getBlock(x & 0xF, y & 0xF, z & 0xF));
+                            MinestomWrappedBlockState data = section.get(x & 0xF, y & 0xF, z & 0xF);
 
                             // Works on both legacy and modern!  Faster than checking for material types, most common case
                             if (data.getGlobalId() == 0) continue;

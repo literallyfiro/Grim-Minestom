@@ -15,7 +15,8 @@ public class TickRunner implements Initable {
     public void start() {
         LogUtil.info("Registering tick schedulers...");
 
-        MinecraftServer.getSchedulerManager().scheduleTask(() -> GrimAPI.INSTANCE.getTickManager().tickSync(), TaskSchedule.immediate(), TaskSchedule.tick(1), ExecutionType.TICK_START);
+        MinecraftServer.getSchedulerManager().scheduleTask(() ->
+                GrimAPI.INSTANCE.getTickManager().tickSync(), TaskSchedule.immediate(), TaskSchedule.tick(1), ExecutionType.TICK_START);
 
         EXECUTOR_SERVICE.submit(() -> {
             MinecraftServer.getSchedulerManager().scheduleTask(() -> GrimAPI.INSTANCE.getTickManager().tickAsync(),

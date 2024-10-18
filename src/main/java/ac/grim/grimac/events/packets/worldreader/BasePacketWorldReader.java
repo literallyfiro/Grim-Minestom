@@ -5,17 +5,20 @@ import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.chunks.Column;
 import ac.grim.grimac.utils.data.TeleportData;
 import ac.grim.grimac.utils.minestom.EventPriority;
+import ac.grim.grimac.utils.minestom.chunk.CompensatedChunk;
+import ac.grim.grimac.utils.minestom.chunk.NetStreamInput;
 import ac.grim.grimac.utils.vector.Vector3i;
 import net.minestom.server.event.Event;
 import net.minestom.server.event.EventNode;
 import net.minestom.server.event.player.PlayerPacketOutEvent;
-import net.minestom.server.instance.Chunk;
 import net.minestom.server.network.packet.server.play.AcknowledgeBlockChangePacket;
 import net.minestom.server.network.packet.server.play.BlockChangePacket;
 import net.minestom.server.network.packet.server.play.ChangeGameStatePacket;
 import net.minestom.server.network.packet.server.play.ChunkDataPacket;
 import net.minestom.server.network.packet.server.play.MultiBlockChangePacket;
 import net.minestom.server.network.packet.server.play.UnloadChunkPacket;
+
+import java.io.ByteArrayInputStream;
 
 public class BasePacketWorldReader {
 
@@ -92,11 +95,11 @@ public class BasePacketWorldReader {
         }
     }
 
-    public Chunk[] read(GrimPlayer player, int chunkSize, int x, int z) {
-        Chunk[] chunks = new Chunk[chunkSize];
+    public CompensatedChunk[] read(NetStreamInput in, int chunkSize) {
+        CompensatedChunk[] chunks = new CompensatedChunk[chunkSize];
 
         for (int index = 0; index < chunkSize; ++index) {
-            chunks[index] = player.bukkitPlayer.getInstance().getChunk(x, z);
+            chunks[index] = CompensatedChunk.read(in);
         }
 
         return chunks;
@@ -106,14 +109,14 @@ public class BasePacketWorldReader {
         int x = chunkData.chunkX();
         int z = chunkData.chunkZ();
 
-        int height = player.bukkitPlayer.getDimensionType().height();
+        int height = player.bukkitPlayer.getDimensionType().height() >> 4;
 
-        Chunk[] chunks = read(player, height, x, z);
+        CompensatedChunk[] chunks = read(new NetStreamInput(new ByteArrayInputStream(chunkData.chunkData().data())), height);
 
         addChunkToCache(event, player, chunks, true, x, z);
     }
 
-    public void addChunkToCache(PlayerPacketOutEvent event, GrimPlayer player, Chunk[] chunks, boolean isGroundUp, int chunkX, int chunkZ) {
+    public void addChunkToCache(PlayerPacketOutEvent event, GrimPlayer player, CompensatedChunk[] chunks, boolean isGroundUp, int chunkX, int chunkZ) {
         double chunkCenterX = (chunkX << 4) + 8;
         double chunkCenterZ = (chunkZ << 4) + 8;
         boolean shouldPostTrans = Math.abs(player.x - chunkCenterX) < 16 && Math.abs(player.z - chunkCenterZ) < 16;

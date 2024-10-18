@@ -11,6 +11,7 @@ import ac.grim.grimac.utils.data.Pair;
 import ac.grim.grimac.utils.data.VectorData;
 import ac.grim.grimac.utils.data.VelocityData;
 import ac.grim.grimac.utils.vector.MutableVector;
+import ac.grim.grimac.utils.vector.Vector3d;
 import lombok.Getter;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.event.player.PlayerPacketOutEvent;
@@ -58,19 +59,19 @@ public class KnockbackHandler extends Check implements PostPredictionCheck {
 
             // If the player isn't in a vehicle and the ID is for the player, the player will take kb
             // If the player is in a vehicle and the ID is for the player's vehicle, the player will take kb
-            Vec playerVelocity = new Vec(velocity.velocityX(), velocity.velocityY(), velocity.velocityZ());
+            Vector3d playerVelocity = new Vector3d(velocity.velocityX(), velocity.velocityY(), velocity.velocityZ());
 
             // Blacklist problemated vector until mojang fixes a client-sided bug
-            if (playerVelocity.y() == -0.04) {
-                Vec newVelocity = playerVelocity.add(new Vec(0, 1 / 8000D, 0));
-                player.bukkitPlayer.setVelocity(newVelocity);
+            if (playerVelocity.getY() == -0.04) {
+                Vector3d newVelocity = playerVelocity.add(new Vector3d(0, 1 / 8000D, 0));
+                player.bukkitPlayer.setVelocity(new Vec(newVelocity.getX(), newVelocity.getY(), newVelocity.getZ()));
                 //velocity.setVelocity(playerVelocity.add(new Vector3d(0, 1 / 8000D, 0)));
                 playerVelocity = newVelocity;
             }
 
             // Wrap velocity between two transactions
             player.sendTransaction();
-            addPlayerKnockback(entityId, player.lastTransactionSent.get(), new MutableVector(playerVelocity));
+            addPlayerKnockback(entityId, player.lastTransactionSent.get(), new MutableVector(playerVelocity.getX(), playerVelocity.getY(), playerVelocity.getZ()));
             // todo minestom
             event.getTasksAfterSend().add(player::sendTransaction);
         }
